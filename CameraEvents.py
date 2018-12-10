@@ -5,6 +5,7 @@ And https://github.com/SaWey/home-assistant-dahua-event
 Author: PsycikNZ
 """
 
+
 REQUIREMENTS = ['pycurl>=7']
 
 import threading
