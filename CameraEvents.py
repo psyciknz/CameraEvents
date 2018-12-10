@@ -1,8 +1,8 @@
 """
 Attach event listener to Dahua devices
 Borrowed code from https://github.com/johnnyletrois/dahua-watch
-
-Author: SaWey
+And https://github.com/SaWey/home-assistant-dahua-event
+Author: PsycikNZ
 """
 
 REQUIREMENTS = ['pycurl>=7']
@@ -159,7 +159,8 @@ class DahuaEventThread(threading.Thread):
         _LOGGER.debug("Added Dahua device at: %s", url)
 
         threading.Thread.__init__(self)
-        self.stopped = threading.Event()
+        self.stopped = threading.Event() 
+
 
     def run(self):
         """Fetch events"""
