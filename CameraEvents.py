@@ -10,6 +10,8 @@ REQUIREMENTS = ['pycurl>=7']
 
 import threading
 import requests
+import re
+import ConfigParser
 import logging
 import os
 import socket
@@ -31,25 +33,6 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 _LOGGER.addHandler(ch)
 
-#URL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&channel=0&codes=%5B{events}%5D"
-#CHANNEL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle"
-
-#CONFIG_SCHEMA = vol.Schema({
-#    DOMAIN:
-#        vol.All(cv.ensure_list, [vol.Schema({
-#            vol.Optional(CONF_NAME): cv.string,
-#            vol.Optional("protocol", default="http"): cv.string,
-#            vol.Optional("user", default="admin"): cv.string,
-#            vol.Optional("password", default="admin"): cv.string,
-#            vol.Required("host"): cv.string,
-#            vol.Optional("port", default=80): int,
-#            vol.Optional("events", default="VideoMotion,CrossLineDetection,AlarmLocal,VideoLoss,VideoBlind"): cv.string,
-#            vol.Optional("channels"): vol.All(cv.ensure_list,[vol.Schema({
-#                    vol.Required("number"): int,
-#                    vol.Required(CONF_NAME): cv.string,
-#            })])
-#        })])
-#}, extra=vol.ALLOW_EXTRA)
 
 
 def setup( config):
@@ -68,57 +51,53 @@ def setup( config):
 
     return True
 
-#class config():
-#    def __init__(self):
-#        self.Name = "NVR"
-#        self.Master = True
-#        self.Protocol = "http"
-#        self.Host = "192.168.10.64"
-#        self.Port = "80"
-#        self.Events = "VideoMotion,CrossLineDetection,AlarmLocal,VideoLoss,VideoBlind"
-#        self.User = "Remote"
-#        self.Password = "Dragon25"
-
-    
-        
-
 
 class DahuaDevice():
     URL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&channel=0&codes=%5B{events}%5D"
     CHANNEL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle"
 
     def __init__(self, name, device_cfg):
+        self.channels = {}
         self.Name = name
         self.CurlObj = None
         self.Connected = None
         self.Reconnect = None
         self.user = device_cfg.get("user")
         self.password = device_cfg.get("pass")
+        self.auth = device_cfg.get("auth")
 
+        #generate the event url
         self.url = self.URL_TEMPLATE.format(
             protocol=device_cfg.get("protocol"),
             host=device_cfg.get("host"),
             port=device_cfg.get("port"),
             events=device_cfg.get("events")
+            
         )
         self.isNVR = False
         try:
+            # Get NVR parm, to get channel names if NVR
             self.isNVR = device_cfg.get("isNVR")
 
             if self.isNVR:
+                #generate the channel url
                 self.channelurl  = self.CHANNEL_TEMPLATE.format(
                     protocol=device_cfg.get("protocol"),
                     host=device_cfg.get("host"),
                     port=device_cfg.get("port")
                 )
-                # get channel names here
                 
-                response = requests.get(self.channelurl,auth=requests.auth.HTTPDigestAuth(self.user,self.password))
-                print response.text
+                # get channel names here
                 #table.ChannelTitle[0].Name=Garage
-                #table.ChannelTitle[1].Name=Backyard
-                #table.ChannelTitle[2].Name=Frontdoor
-                #table.ChannelTitle[3].Name=Backdoor
+                response = requests.get(self.channelurl,auth=requests.auth.HTTPDigestAuth(self.user,self.password))
+                for line in response.text.splitlines():
+                    match = re.search('.\[(?P<index>[0-4])\]\..+\=(?P<channel>.+)',line)
+                    if match:
+                        _index = int(match.group("index"))
+                        _channel = match.group("channel")
+                        self.channels[_index] = _channel
+            else:
+                self.channels[0] = self.Name
 
         except Exception,e:
             _LOGGER.debug("Device " + name + " is not an NVR: " + str(e))
@@ -153,8 +132,8 @@ class DahuaDevice():
                 Key, Value = KeyValue.split('=')
                 Alarm[Key] = Value
 
-            if Alarm["index"] in self.Channels:
-                Alarm["channel"] = self.Channels[Alarm["index"]]
+            if Alarm["index"] in self.channels:
+                Alarm["channel"] = self.channels[Alarm["index"]]
 
             _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["index"])
             mqttc.connect("mqtt.andc.nz", int(1883), 60)
@@ -187,8 +166,12 @@ class DahuaEventThread(threading.Thread):
             CurlObj.setopt(pycurl.TCP_KEEPALIVE, 1)
             CurlObj.setopt(pycurl.TCP_KEEPIDLE, 30)
             CurlObj.setopt(pycurl.TCP_KEEPINTVL, 15)
-            CurlObj.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_DIGEST)
-            CurlObj.setopt(pycurl.USERPWD, "%s:%s" % (device.user, device.password))
+            if device.auth == 'digest':
+                CurlObj.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_DIGEST)
+                CurlObj.setopt(pycurl.USERPWD, "%s:%s" % (device.user, device.password))
+            else:
+                CurlObj.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH)
+                CurlObj.setopt(pycurl.USERPWD, "%s:%s" % (device.user, device.password))
             CurlObj.setopt(pycurl.WRITEFUNCTION, device.OnReceive)
 
             self.CurlMultiObj.add_handle(CurlObj)
@@ -241,31 +224,26 @@ class DahuaEventThread(threading.Thread):
             #if Ret != pycurl.E_CALL_MULTI_PERFORM: break
 
 if __name__ == '__main__':
-    #_config = config()
-    CAMERAS = [
-        {
-            "host": "192.168.10.64",
-            "protocol": "http",
-            "name" : "NVR",
-            "isNVR": True,
-            "port": 80,
-            "user": "Remote",
-            "pass": "Dragon25",
-            "events": "VideoMotion,CrossLineDetection,AlarmLocal,VideoLoss,VideoBlind"
-        }
-    ]
-        #,
-        #{
-        #    "host": "192.168.10.65",
-        #    "protocol": "http",
-        #    "name": "Roof",
-        #    "port": 80,
-        #    "user": "USER",
-        #    "pass": "PASSWORD",
-        #    "events": "CrossLineDetection"
-        #}
-    #]
-    #_config.readConfig(CAMERAS)
+
+    CAMERAS = []
+    cp = ConfigParser.ConfigParser()
+    cp.read("config.ini")
+    camera_items = cp.items( "Cameras" )
+    for key, camera_key in camera_items:
+        #do something with path
+        camera_cp = cp.items(camera_key)
+        camera = {}
+        #temp = cp.get(camera_key,"host")
+        camera["host"] = cp.get(camera_key,'host')
+        camera["protocol"] = cp.get(camera_key,'protocol')
+        camera["isNVR"] = cp.get(camera_key,'isNVR')
+        camera["name"] = cp.get(camera_key,'name')
+        camera["port"] = cp.get(camera_key,'port')
+        camera["user"] = cp.get(camera_key,'user')
+        camera["pass"] = cp.get(camera_key,'pass')
+        camera["auth"] = cp.get(camera_key,'auth')
+        camera["events"] = cp.get(camera_key,'events')
+        CAMERAS.append(camera)
 
     dahua_event = DahuaEventThread(CAMERAS)
 
