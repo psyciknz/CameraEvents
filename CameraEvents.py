@@ -53,10 +53,11 @@ def setup( config):
 
 
 class DahuaDevice():
-    URL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&channel=0&codes=%5B{events}%5D"
+    #EVENT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&channel=0&codes=%5B{events}%5D"
+    EVENT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&codes=%5B{events}%5D"
     CHANNEL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle"
 
-    def __init__(self, name, device_cfg):
+    def __init__(self, mqtt, name, device_cfg):
         self.channels = {}
         self.Name = name
         self.CurlObj = None
@@ -65,9 +66,10 @@ class DahuaDevice():
         self.user = device_cfg.get("user")
         self.password = device_cfg.get("pass")
         self.auth = device_cfg.get("auth")
+        self.mqtt = mqtt
 
         #generate the event url
-        self.url = self.URL_TEMPLATE.format(
+        self.url = self.EVENT_TEMPLATE.format(
             protocol=device_cfg.get("protocol"),
             host=device_cfg.get("host"),
             port=device_cfg.get("port"),
@@ -132,12 +134,23 @@ class DahuaDevice():
                 Key, Value = KeyValue.split('=')
                 Alarm[Key] = Value
 
-            if Alarm["index"] in self.channels:
-                Alarm["channel"] = self.channels[Alarm["index"]]
+            index =  int( Alarm["index"]         )
+            if index in self.channels:
+                Alarm["channel"] = self.channels[index]
+            else:
+                Alarm["channel"] = self.Name + ":" + index
 
-            _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["index"])
-            mqttc.connect("mqtt.andc.nz", int(1883), 60)
-            mqttc.publish("CameraEventsPy/" + Alarm["index"] + "/" + Alarm["name"])
+            mqttc.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
+            if Alarm["Code"] == "VideoMotion":
+                _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
+                if Alarm["action"] == "Start":
+                    mqttc.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
+                else:
+                    mqttc.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+            else:
+                _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
+                mqttc.publish("CameraEventsPy/" + Alarm["index"] + "/" + Alarm["name"],Alarm["Code"])
+
             mqttc.disconnect()
             #self.hass.bus.fire("dahua_event_received", Alarm)
 
@@ -150,12 +163,12 @@ class DahuaEventThread(threading.Thread):
     NumCurlObjs = 0
 	
 
-    def __init__(self,  cameras):
+    def __init__(self,  mqtt, cameras):
         """Construct a thread listening for events."""
 
         for device_cfg in cameras:
 
-            device = DahuaDevice(device_cfg.get("name"), device_cfg)
+            device = DahuaDevice(mqtt, device_cfg.get("name"), device_cfg)
             self.Devices.append(device)
 
             CurlObj = pycurl.Curl()
@@ -225,7 +238,7 @@ class DahuaEventThread(threading.Thread):
 
 if __name__ == '__main__':
 
-    CAMERAS = []
+    cameras = []
     cp = ConfigParser.ConfigParser()
     cp.read("config.ini")
     camera_items = cp.items( "Cameras" )
@@ -243,9 +256,12 @@ if __name__ == '__main__':
         camera["pass"] = cp.get(camera_key,'pass')
         camera["auth"] = cp.get(camera_key,'auth')
         camera["events"] = cp.get(camera_key,'events')
-        CAMERAS.append(camera)
+        cameras.append(camera)
 
-    dahua_event = DahuaEventThread(CAMERAS)
+    mqtt = {}
+    mqtt["IP"] = cp.get("MQTT Broker","IP")
+    mqtt["port"] = cp.get("MQTT Broker","port")
+    dahua_event = DahuaEventThread(mqtt,cameras)
 
     dahua_event.start()
 
