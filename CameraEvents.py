@@ -18,6 +18,7 @@ import socket
 import pycurl
 import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
+import base64
 
 mqttc = paho.Client("CameraEvents", clean_session=True)
 
@@ -56,6 +57,10 @@ class DahuaDevice():
     #EVENT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&channel=0&codes=%5B{events}%5D"
     EVENT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&codes=%5B{events}%5D"
     CHANNEL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle"
+    SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?channel={channel}"
+
+    
+    
 
     def __init__(self, mqtt, name, device_cfg):
         self.channels = {}
@@ -63,19 +68,33 @@ class DahuaDevice():
         self.CurlObj = None
         self.Connected = None
         self.Reconnect = None
+        self.MQTTConnected = None
         self.user = device_cfg.get("user")
         self.password = device_cfg.get("pass")
         self.auth = device_cfg.get("auth")
         self.mqtt = mqtt
+        self.protocol  = device_cfg.get("protocol")
+        self.host = device_cfg.get("host")
+        self.port = device_cfg.get("port")
 
         #generate the event url
         self.url = self.EVENT_TEMPLATE.format(
-            protocol=device_cfg.get("protocol"),
-            host=device_cfg.get("host"),
-            port=device_cfg.get("port"),
+            protocol=self.protocol,
+            host=self.host,
+            port=self.port,
             events=device_cfg.get("events")
             
         )
+        
+        self.client = paho.Client("CameraEvents", clean_session=True)
+        self.client.on_connect = self.mqtt_on_connect
+        self.client.on_message = self.mqtt_on_message
+        
+        self.client.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
+        self.client.loop_start()
+        self.client.subscribe("CameraEventsPy/picture")
+
+
         self.isNVR = False
         try:
             # Get NVR parm, to get channel names if NVR
@@ -104,20 +123,57 @@ class DahuaDevice():
         except Exception,e:
             _LOGGER.debug("Device " + name + " is not an NVR: " + str(e))
             _LOGGER.debug("Device " + name + " is not an NVR")
+
+    def mqtt_on_connect(self, client, userdata, flags, rc):
+        if rc==0:
+            _LOGGER.info("Camera: {0}: connected to MQTT OK Returned code={1}".format(self.Name,rc))
+            
+        else:
+            _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format(self.Name,rc) )
+
+    def mqtt_on_message(self,client, userdata, msg):
+        #if msg.payload.decode() == "Hello world!":
+        _LOGGER.info("Camera: {0}: Msg Received: Topic:{1} Payload:{2}".format(self.Name,msg.topic,msg.payload))
+        #client.disconnect()
         
+    def SnapshotImage(self, channel, channelName, mqttc):
+        imageurl  = self.SNAPSHOT_TEMPLATE.format(
+                host=self.host,
+                protocol=self.protocol,
+                port  = self.port,
+                channel=channel
+            )
+        image = None
+        if self.auth == "digest":
+            image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPDigestAuth(self.user, self.password)).content
+        else:
+            image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
+        
+        try:
+            if image is not None:
+                #construct image payload
+                #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
+                imgpayload = base64.encodestring(image)
+                msgpayload = "{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}".format(channelName,imgpayload)
+                
+                self.client.publish("CameraEventsPy/Image",msgpayload)
+        except Exception,ex:
+            _LOGGER.error("Error sending image: " + str(ex))
     
 
-
+    # Connected to camera
     def OnConnect(self):
         _LOGGER.debug("[{0}] OnConnect()".format(self.Name))
         self.Connected = True
 
+    #disconnected from camera
     def OnDisconnect(self, reason):
         _LOGGER.debug("[{0}] OnDisconnect({1})".format(self.Name, reason))
         self.Connected = False
 
-
+    #on receive data from camera.
     def OnReceive(self, data):
+        #self.client.loop_forever()
         Data = data.decode("utf-8", errors="ignore")
         _LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
 
@@ -140,19 +196,26 @@ class DahuaDevice():
             else:
                 Alarm["channel"] = self.Name + ":" + index
 
-            mqttc.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
+            #mqttc.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
             if Alarm["Code"] == "VideoMotion":
                 _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 if Alarm["action"] == "Start":
-                    mqttc.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
+                    self.client.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
+                    process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],mqttc))
+                    process.daemon = True                            # Daemonize thread
+                    process.start()    
                 else:
-                    mqttc.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+                    self.client.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
-                mqttc.publish("CameraEventsPy/" + Alarm["index"] + "/" + Alarm["name"],Alarm["Code"])
+                self.client.publish("CameraEventsPy/" + Alarm["index"] + "/" + Alarm["name"],Alarm["Code"])
 
-            mqttc.disconnect()
+            #mqttc.disconnect()
             #self.hass.bus.fire("dahua_event_received", Alarm)
+
+    
+
+
 
 class DahuaEventThread(threading.Thread):
     """Connects to device and subscribes to events"""
