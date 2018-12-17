@@ -91,9 +91,11 @@ class DahuaDevice():
         self.client.on_connect = self.mqtt_on_connect
         self.client.on_message = self.mqtt_on_message
         
+        self.client.will_set("CameraEventsPy/$online",False,0,True)
         self.client.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
         self.client.loop_start()
         self.client.subscribe("CameraEventsPy/+/picture")
+        
 
 
         self.isNVR = False
@@ -128,6 +130,7 @@ class DahuaDevice():
     def mqtt_on_connect(self, client, userdata, flags, rc):
         if rc==0:
             _LOGGER.info("Camera: {0}: connected to MQTT OK Returned code={1}".format(self.Name,rc))
+            self.client.publish("CameraEventsPy/$online",True,0,False)
             
         else:
             _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format(self.Name,rc) )
