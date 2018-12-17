@@ -16,6 +16,7 @@ import logging
 import os
 import socket
 import pycurl
+import json
 import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
@@ -92,7 +93,7 @@ class DahuaDevice():
         
         self.client.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
         self.client.loop_start()
-        self.client.subscribe("CameraEventsPy/picture")
+        self.client.subscribe("CameraEventsPy/+/picture")
 
 
         self.isNVR = False
@@ -134,9 +135,17 @@ class DahuaDevice():
     def mqtt_on_message(self,client, userdata, msg):
         #if msg.payload.decode() == "Hello world!":
         _LOGGER.info("Camera: {0}: Msg Received: Topic:{1} Payload:{2}".format(self.Name,msg.topic,msg.payload))
+        msgchannel = msg.topic.split("/")[1]
+        for channel in self.channels:
+            _LOGGER.debug("Found channel: {0}: Name:{1}".format(channel,self.channels[channel]))
+            if self.channels[channel] == msgchannel:
+                self.SnapshotImage(channel,msgchannel,"Snap Shot Image")
+                break
+            
+        
         #client.disconnect()
         
-    def SnapshotImage(self, channel, channelName, mqttc):
+    def SnapshotImage(self, channel, channelName, message):
         imageurl  = self.SNAPSHOT_TEMPLATE.format(
                 host=self.host,
                 protocol=self.protocol,
@@ -154,9 +163,10 @@ class DahuaDevice():
                 #construct image payload
                 #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
                 imgpayload = base64.encodestring(image)
-                msgpayload = "{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}".format(channelName,imgpayload)
+                msgpayload = json.dumps({"message":message,"imagebase64":imgpayload})
+                #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
                 
-                self.client.publish("CameraEventsPy/Image",msgpayload)
+                self.client.publish("CameraEventsPy/{0}/Image".format(channelName),msgpayload)
         except Exception,ex:
             _LOGGER.error("Error sending image: " + str(ex))
     
@@ -201,7 +211,7 @@ class DahuaDevice():
                 _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 if Alarm["action"] == "Start":
                     self.client.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
-                    process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],mqttc))
+                    process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],"Motion Detected: {0)".format(Alarm["channel"])))
                     process.daemon = True                            # Daemonize thread
                     process.start()    
                 else:
