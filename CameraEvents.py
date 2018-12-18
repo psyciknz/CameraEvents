@@ -94,7 +94,7 @@ class DahuaDevice():
         self.client.will_set("CameraEventsPy/$online",False,0,True)
         self.client.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
         self.client.loop_start()
-        self.client.subscribe("CameraEventsPy/+/picture")
+        
         
 
 
@@ -131,6 +131,7 @@ class DahuaDevice():
         if rc==0:
             _LOGGER.info("Camera: {0}: connected to MQTT OK Returned code={1}".format(self.Name,rc))
             self.client.publish("CameraEventsPy/$online",True,0,False)
+            self.client.subscribe("CameraEventsPy/+/picture")
             
         else:
             _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format(self.Name,rc) )
@@ -162,7 +163,7 @@ class DahuaDevice():
             image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
         
         try:
-            if image is not None:
+            if image is not None and len(image) > 0:
                 #construct image payload
                 #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
                 imgpayload = base64.encodestring(image)
@@ -214,7 +215,7 @@ class DahuaDevice():
                 _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 if Alarm["action"] == "Start":
                     self.client.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
-                    process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],"Motion Detected: {0)".format(Alarm["channel"])))
+                    process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
                     process.daemon = True                            # Daemonize thread
                     process.start()    
                 else:
