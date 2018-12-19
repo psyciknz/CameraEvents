@@ -77,6 +77,7 @@ class DahuaDevice():
         self.protocol  = device_cfg.get("protocol")
         self.host = device_cfg.get("host")
         self.port = device_cfg.get("port")
+        self.alerts = True;
 
         #generate the event url
         self.url = self.EVENT_TEMPLATE.format(
@@ -89,7 +90,9 @@ class DahuaDevice():
         
         self.client = paho.Client("CameraEvents", clean_session=True)
         self.client.on_connect = self.mqtt_on_connect
-        self.client.on_message = self.mqtt_on_message
+        #self.client.on_message = self.mqtt_on_message
+        self.client.message_callback_add("CameraEventsPy/+/picture",self.mqtt_on_picture_message)
+        self.client.message_callback_add("CameraEventsPy/alerts",self.mqtt_on_alert_message)
         
         self.client.will_set("CameraEventsPy/$online",False,0,True)
         self.client.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
@@ -131,12 +134,18 @@ class DahuaDevice():
         if rc==0:
             _LOGGER.info("Camera: {0}: connected to MQTT OK Returned code={1}".format(self.Name,rc))
             self.client.publish("CameraEventsPy/$online",True,0,False)
-            self.client.subscribe("CameraEventsPy/+/picture")
+            if self.alerts:
+                state = "ON"
+            else:
+                state = "OFF"
+            self.client.publish("CameraEventsPy/" + self.Name + "/alerts",state)
+            self.client.subscribe("CameraEventsPy/#")
+            #self.client.subscribe("CameraEventsPy/alerts")
             
         else:
             _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format(self.Name,rc) )
 
-    def mqtt_on_message(self,client, userdata, msg):
+    def mqtt_on_picture_message(self,client, userdata, msg):
         #if msg.payload.decode() == "Hello world!":
         _LOGGER.info("Camera: {0}: Msg Received: Topic:{1} Payload:{2}".format(self.Name,msg.topic,msg.payload))
         msgchannel = msg.topic.split("/")[1]
@@ -145,6 +154,19 @@ class DahuaDevice():
             if self.channels[channel] == msgchannel:
                 self.SnapshotImage(channel,msgchannel,"Snap Shot Image")
                 break
+    
+                    
+    def mqtt_on_alert_message(self,client, userdata, msg):
+        #if msg.payload.decode() == "Hello world!":
+        _LOGGER.info("Camera: {0}: Msg Received: Topic:{1} Payload:{2}".format(self.Name,msg.topic,msg.payload))
+        if msg.payload == 'ON':
+            _LOGGER.info("Turning Alerts On")
+            self.alerts = True
+            self.client.publish("CameraEventsPy/" + self.Name + "/alerts","ON")
+        else:
+            _LOGGER.info("Turning Alerts OFF")
+            self.alerts = False
+            self.client.publish("CameraEventsPy/" + self.Name + "/alerts","OFF")
             
         
         #client.disconnect()
@@ -215,9 +237,10 @@ class DahuaDevice():
                 _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 if Alarm["action"] == "Start":
                     self.client.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
-                    process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
-                    process.daemon = True                            # Daemonize thread
-                    process.start()    
+                    if self.alerts:
+                        process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
+                        process.daemon = True                            # Daemonize thread
+                        process.start()    
                 else:
                     self.client.publish("CameraEventsPy/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
             else:
