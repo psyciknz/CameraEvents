@@ -365,7 +365,11 @@ if __name__ == '__main__':
 
     cameras = []
     cp = ConfigParser.ConfigParser()
-    cp.read("config.ini")
+    try:
+        cp.read("config.ini")
+    except:
+        cp.read("conf/config.ini")
+
     camera_items = cp.items( "Cameras" )
     for key, camera_key in camera_items:
         #do something with path
