@@ -5,7 +5,7 @@ __CROSS_COPY qemu/qemu-__QEMU_ARCH__-static /usr/bin/
 # based on https://github.com/pfichtner/docker-mqttwarn
 
 # install python libraries (TODO: any others?)
-RUN pip install paho-mqtt requests ConfigParser
+RUN pip install paho-mqtt requests ConfigParser pycurl
 
 # build /opt/mqttwarn
 RUN mkdir -p /opt/cameraevents
