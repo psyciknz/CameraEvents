@@ -355,7 +355,7 @@ class DahuaEventThread(threading.Thread):
             if device.Name == deviceName:
                 device.alerts = newState
                 _LOGGER.info("Turning Alerts {0}".format( newState))
-                self.client.publish("CameraEventsPy/" + device.Name + "/alerts/state",newState)
+                self.client.publish("CameraEventsPy/" + device.Name + "/alerts/state",msg.payload)
 
 if __name__ == '__main__':
 
