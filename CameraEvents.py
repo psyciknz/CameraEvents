@@ -366,34 +366,39 @@ if __name__ == '__main__':
     cameras = []
     cp = ConfigParser.ConfigParser()
     try:
+        _LOGGER.info("Loading config")
         cp.read("config.ini")
     except:
+        _LOGGER.info("Loading config from conf dir")
         cp.read("conf/config.ini")
 
-    camera_items = cp.items( "Cameras" )
-    for key, camera_key in camera_items:
-        #do something with path
-        camera_cp = cp.items(camera_key)
-        camera = {}
-        #temp = cp.get(camera_key,"host")
-        camera["host"] = cp.get(camera_key,'host')
-        camera["protocol"] = cp.get(camera_key,'protocol')
-        camera["isNVR"] = cp.get(camera_key,'isNVR')
-        camera["name"] = cp.get(camera_key,'name')
-        camera["port"] = cp.get(camera_key,'port')
-        camera["user"] = cp.get(camera_key,'user')
-        camera["pass"] = cp.get(camera_key,'pass')
-        camera["auth"] = cp.get(camera_key,'auth')
-        camera["events"] = cp.get(camera_key,'events')
-        cameras.append(camera)
+    try:
+        camera_items = cp.items( "Cameras" )
+        for key, camera_key in camera_items:
+            #do something with path
+            camera_cp = cp.items(camera_key)
+            camera = {}
+            #temp = cp.get(camera_key,"host")
+            camera["host"] = cp.get(camera_key,'host')
+            camera["protocol"] = cp.get(camera_key,'protocol')
+            camera["isNVR"] = cp.get(camera_key,'isNVR')
+            camera["name"] = cp.get(camera_key,'name')
+            camera["port"] = cp.get(camera_key,'port')
+            camera["user"] = cp.get(camera_key,'user')
+            camera["pass"] = cp.get(camera_key,'pass')
+            camera["auth"] = cp.get(camera_key,'auth')
+            camera["events"] = cp.get(camera_key,'events')
+            cameras.append(camera)
 
-    mqtt = {}
-    mqtt["IP"] = cp.get("MQTT Broker","IP")
-    mqtt["port"] = cp.get("MQTT Broker","port")
-    mqtt["basetopic"] = cp.get("MQTT Broker","BaseTopic")
-    dahua_event = DahuaEventThread(mqtt,cameras)
+        mqtt = {}
+        mqtt["IP"] = cp.get("MQTT Broker","IP")
+        mqtt["port"] = cp.get("MQTT Broker","port")
+        mqtt["basetopic"] = cp.get("MQTT Broker","BaseTopic")
+        dahua_event = DahuaEventThread(mqtt,cameras)
 
-    dahua_event.start()
+        dahua_event.start()
+    except Exception,ex:
+        _LOGGER.error("Error starting:" + str(ex))
 
     
 
