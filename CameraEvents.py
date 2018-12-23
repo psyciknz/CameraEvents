@@ -365,12 +365,9 @@ if __name__ == '__main__':
 
     cameras = []
     cp = ConfigParser.ConfigParser()
-    try:
-        _LOGGER.info("Loading config")
-        cp.read("config.ini")
-    except:
-        _LOGGER.info("Loading config from conf dir")
-        cp.read("conf/config.ini")
+    _LOGGER.info("Loading config")
+    filename = {"config.ini","conf/config.ini"}
+    cp.read(filename)
 
     try:
         camera_items = cp.items( "Cameras" )
