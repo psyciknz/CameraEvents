@@ -21,6 +21,8 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
+version = "0.0.2"
+
 mqttc = paho.Client("CameraEvents", clean_session=True)
 
 _LOGGER = logging.getLogger(__name__)
@@ -191,7 +193,7 @@ class DahuaDevice():
             if index in self.channels:
                 Alarm["channel"] = self.channels[index]
             else:
-                Alarm["channel"] = self.Name + ":" + index
+                Alarm["channel"] = self.Name + ":" + str(index)
 
             #mqttc.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
             if Alarm["Code"] == "VideoMotion":
@@ -207,7 +209,11 @@ class DahuaDevice():
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 self.client.publish(self.basetopic +"/" + Alarm["index"] + "/" + Alarm["name"],Alarm["Code"])
-
+            #2019-01-27 08:28:19,658 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
+            #2019-01-27 08:28:19,674 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
+            #2019-01-27 08:28:19,703 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossLineDetection
+            #2019-01-27 08:28:19,729 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
+            #2019-01-27 08:28:19,743 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossLineDetection
             #mqttc.disconnect()
             #self.hass.bus.fire("dahua_event_received", Alarm)
 
@@ -269,6 +275,7 @@ class DahuaEventThread(threading.Thread):
         #connect to mqtt broker
         
         self.client.connect(mqtt["IP"], int(mqtt["port"]), 60)
+        
         self.client.loop_start()
 
         threading.Thread.__init__(self)
@@ -319,6 +326,7 @@ class DahuaEventThread(threading.Thread):
         if rc==0:
             _LOGGER.info("Connected to MQTT OK Returned code={0}".format(rc))
             self.client.publish(self.basetopic +"/$online",True,0,False)
+            self.client.publish(self.basetopic +"/$version",version)
             if self.alerts:
                 state = "ON"
             else:
@@ -327,7 +335,7 @@ class DahuaEventThread(threading.Thread):
             for device in self.Devices:
                 device.alerts = state
                 self.client.publish(self.basetopic +"" + device.Name + "/alerts/state",state)
-            self.client.subscribe(self.basetopic +"/#")
+            #self.client.subscribe(self.basetopic +"/#")
             #self.client.subscribe("CameraEventsPy/alerts")
             
         else:
