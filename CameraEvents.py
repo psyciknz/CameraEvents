@@ -22,7 +22,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.0.2"
+version = "0.0.3"
 
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -434,7 +434,7 @@ class DahuaDevice():
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
-                self.client.publish(self.basetopic +"/" + Alarm["index"] + "/" + Alarm["name"],Alarm["Code"])
+                self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
             #2019-01-27 08:28:19,658 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,674 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,703 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossLineDetection
@@ -627,7 +627,7 @@ if __name__ == '__main__':
                 for channel in channellist:
                     channelIndex = channel.split(':')[0]
                     channelName = channel.split(':')[1]
-                    channels[channelIndex] = channelName
+                    channels[int(channelIndex)] = channelName
                     
             except Exception,e:
                 _LOGGER.error("Error Reading channel list:" + str(e))
