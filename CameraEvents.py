@@ -10,7 +10,7 @@ REQUIREMENTS = ['pycurl>=7']
 
 import threading
 import requests
-import urllib, urllib2, httplib
+import datetime
 import re
 import ConfigParser
 import logging
@@ -22,7 +22,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.0.3"
+version = "0.0.4"
 
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -423,6 +423,8 @@ class DahuaDevice():
             if Alarm["Code"] == "VideoMotion":
                 _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 if Alarm["action"] == "Start":
+                    if not self.client.connected_flag:
+                        self.client.reconnect()
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
                     #if self.alerts:
                         #possible new process:
@@ -463,6 +465,7 @@ class DahuaEventThread(threading.Thread):
 
         self.client = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
         self.client.on_connect = self.mqtt_on_connect
+        self.client.on_disconnect = self.mqtt_on_disconnect
         #self.client.on_message = self.mqtt_on_message
         self.client.message_callback_add(self.basetopic +"/+/picture",self.mqtt_on_picture_message)
         self.client.message_callback_add(self.basetopic +"/+/alerts",self.mqtt_on_alert_message)
@@ -511,6 +514,7 @@ class DahuaEventThread(threading.Thread):
 
 
     def run(self):
+        heartbeat = 0
         """Fetch events"""
         while 1:
             Ret, NumHandles = self.CurlMultiObj.perform()
@@ -521,6 +525,14 @@ class DahuaEventThread(threading.Thread):
         while not self.stopped.isSet():
             # Sleeps to ease load on processor
             time.sleep(.05)
+            heartbeat = heartbeat + 1
+            if heartbeat % 1000 == 0:
+                print "heartbeat"
+                _LOGGER.debug("Heartbeat")
+                if not self.client.connected_flag:
+                    self.client.reconnect()
+                self.client.publish(self.basetopic +"/$heartbeat",str(datetime.datetime.now()))
+
             Ret, NumHandles = self.CurlMultiObj.perform()
 
             if NumHandles != self.NumCurlObjs:
@@ -553,6 +565,7 @@ class DahuaEventThread(threading.Thread):
     def mqtt_on_connect(self, client, userdata, flags, rc):
         if rc==0:
             _LOGGER.info("Connected to MQTT OK Returned code={0}".format(rc))
+            client.connected_flag=True
             self.client.publish(self.basetopic +"/$online",True,0,False)
             self.client.publish(self.basetopic +"/$version",version)
             if self.alerts:
@@ -568,6 +581,12 @@ class DahuaEventThread(threading.Thread):
             
         else:
             _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format("self.Name",rc) )
+            client.connected_flag=False
+
+    def mqtt_on_disconnect(self, client, userdata, rc):
+        logging.info("disconnecting reason  "  +str(rc))
+        client.connected_flag=False
+        
 
     def mqtt_on_picture_message(self,client, userdata, msg):
 
