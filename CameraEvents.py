@@ -40,21 +40,22 @@ _LOGGER.addHandler(ch)
 
 
 
-# def setup( config):
-#     """Set up Dahua event listener."""
-#     config = config.get(DOMAIN)
+def setup( config):
+    """Set up Dahua event listener."""
+    #config = config.get(DOMAIN)
 
-#     dahua_event = DahuaEventThread(
-#         config
-#     )
+    dahua_event = DahuaEventThread(
+        None,
+        None
+    )
 
-#     def _start_dahua_event(_event):
-#         dahua_event.start()
+    def _start_dahua_event(_event):
+        dahua_event.start()
 
-#     def _stop_dahua_event(_event):
-#         dahua_event.stopped.set()
+    def _stop_dahua_event(_event):
+        dahua_event.stopped.set()
 
-#     return True
+    return True
 
 class DahuaDevice():
     #EVENT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&channel=0&codes=%5B{events}%5D"
@@ -306,7 +307,6 @@ class DahuaEventThread(threading.Thread):
         self.client = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
         self.client.on_connect = self.mqtt_on_connect
         self.client.on_disconnect = self.mqtt_on_disconnect
-        #self.client.on_message = self.mqtt_on_message
         self.client.message_callback_add(self.basetopic +"/+/picture",self.mqtt_on_picture_message)
         self.client.message_callback_add(self.basetopic +"/+/alerts",self.mqtt_on_alert_message)
         
@@ -324,8 +324,7 @@ class DahuaEventThread(threading.Thread):
             device.CurlObj = CurlObj
 
             CurlObj.setopt(pycurl.URL, device.url)
-            #CurlObj.setopt(pycurl.URL, device.snapshotevents)
-
+            
             CurlObj.setopt(pycurl.CONNECTTIMEOUT, 30)
             CurlObj.setopt(pycurl.TCP_KEEPALIVE, 1)
             CurlObj.setopt(pycurl.TCP_KEEPIDLE, 30)
