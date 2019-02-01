@@ -40,100 +40,28 @@ _LOGGER.addHandler(ch)
 
 
 
-def setup( config):
-    """Set up Dahua event listener."""
-    #config = config.get(DOMAIN)
+# def setup( config):
+#     """Set up Dahua event listener."""
+#     config = config.get(DOMAIN)
 
-    dahua_event = DahuaEventThread(
-        config
-    )
+#     dahua_event = DahuaEventThread(
+#         config
+#     )
 
-    def _start_dahua_event(_event):
-        dahua_event.start()
+#     def _start_dahua_event(_event):
+#         dahua_event.start()
 
-    def _stop_dahua_event(_event):
-        dahua_event.stopped.set()
+#     def _stop_dahua_event(_event):
+#         dahua_event.stopped.set()
 
-    return True
-
-class HTTPconnect:
-
-	def __init__(self, host, proto, verbose, credentials, Raw, noexploit):
-		self.host = host
-		self.proto = proto
-		self.verbose = verbose
-		self.credentials = credentials
-		self.Raw = Raw
-		self.noexploit = False
-		self.noexploit = noexploit
-	
-	def Send(self, uri, query_headers, query_data,ID, digest=False):
-		self.uri = uri
-		self.query_headers = query_headers
-		self.query_data = query_data
-		self.ID = ID
-
-		# Connect-timeout in seconds
-		timeout = 5
-		socket.setdefaulttimeout(timeout)
-
-		url = '{}://{}{}'.format(self.proto, self.host, self.uri)
-
-		if self.verbose:
-			print "[Verbose] Sending:", url
-
-		if self.proto == 'https':
-			if hasattr(ssl, '_create_unverified_context'):
-				print "[i] Creating SSL Unverified Context"
-				ssl._create_default_https_context = ssl._create_unverified_context
-
-		if self.credentials:
-			Basic_Auth = self.credentials.split(':')
-			if self.verbose:
-				print "[Verbose] User:",Basic_Auth[0],"password:",Basic_Auth[1]
-			try:
-				pwd_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
-				pwd_mgr.add_password(None, url, Basic_Auth[0], Basic_Auth[1])
-				if digest:
-					auth_handler = urllib2.HTTPDigestAuthHandler(pwd_mgr)
-				else:
-					auth_handler = urllib2.HTTPBasicAuthHandler(pwd_mgr)
-				opener = urllib2.build_opener(auth_handler)
-				urllib2.install_opener(opener)
-			except Exception as e:
-				print "[!] Basic Auth Error:",e
-				sys.exit(1)
-
-		if self.noexploit and not self.verbose:
-			print "[<] 204 Not Sending!"
-			html =  "Not sending any data"
-			return html
-		else:
-			if self.query_data:
-				req = urllib2.Request(url, data=json.dumps(self.query_data), headers=self.query_headers)
-				if self.ID:
-					Cookie = 'DhWebClientSessionID={}'.format(self.ID)
-					req.add_header('Cookie', Cookie)
-			else:
-				req = urllib2.Request(url, None, headers=self.query_headers)
-				if self.ID:
-					Cookie = 'DhWebClientSessionID={}'.format(self.ID)
-					req.add_header('Cookie', Cookie)
-			rsp = urllib2.urlopen(req)
-			if rsp:
-				print "[<] {} OK".format(rsp.code)
-
-		if self.Raw:
-			return rsp
-		else:
-			html = rsp.read()
-			return html
+#     return True
 
 class DahuaDevice():
     #EVENT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&channel=0&codes=%5B{events}%5D"
     EVENT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attach&codes=%5B{events}%5D"
     CHANNEL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle"
     SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?channel={channel}"
+    #SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?chn={channel}"
     SNAPSHOT_EVENT = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attachFileProc&Flags[0]=Event&Events=%5B{events}%5D"
      #cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]    
 
@@ -143,6 +71,8 @@ class DahuaDevice():
     def __init__(self,  name, device_cfg, client, basetopic):
         if device_cfg["channels"]:
             self.channels = device_cfg["channels"]
+        else:
+            self.channels = {}
         self.Name = name
         self.CurlObj = None
         self.Connected = None
@@ -151,11 +81,11 @@ class DahuaDevice():
         self.user = device_cfg.get("user")
         self.password = device_cfg.get("pass")
         self.auth = device_cfg.get("auth")
-        self.mqtt = mqtt
+        self.mqtt = device_cfg.get("mqtt")
         self.protocol  = device_cfg.get("protocol")
         self.host = device_cfg.get("host")
         self.port = device_cfg.get("port")
-        self.alerts = True
+        self.alerts = device_cfg.get("alerts")
         self.client = client
         self.basetopic = basetopic
 
@@ -194,7 +124,7 @@ class DahuaDevice():
                 #table.ChannelTitle[0].Name=Garage
                 response = requests.get(self.channelurl,auth=requests.auth.HTTPDigestAuth(self.user,self.password))
                 for line in response.text.splitlines():
-                    match = re.search('.\[(?P<index>[0-4])\]\..+\=(?P<channel>.+)',line)
+                    match = re.search(r'.\[(?P<index>[0-4])\]\..+\=(?P<channel>.+)',line)
                     if match:
                         _index = int(match.group("index"))
                         _channel = match.group("channel")
@@ -202,41 +132,9 @@ class DahuaDevice():
             else:
                 self.channels[0] = self.Name
 
-        except Exception,e:
+        except Exception as e:
             _LOGGER.debug("Device " + name + " is not an NVR: " + str(e))
             _LOGGER.debug("Device " + name + " is not an NVR")
-
-    def sofia_hash(msg):
-        h = ""
-        m = hashlib.md5()
-        m.update(msg)
-        msg_md5 = m.digest()
-        for i in range(8):
-            n = (ord(msg_md5[2*i]) + ord(msg_md5[2*i+1])) % 0x3e
-            if n > 9:
-                if n > 35:
-                    n += 61
-                else:
-                    n += 55
-            else:
-                n += 0x30
-            h += chr(n)
-        return h
-
-    #
-    # Dahua random MD5 on MD5 password hash
-    #
-    def dahua_md5_hash(Dahua_random, Dahua_realm, username, password):
-
-        PWDDB_HASH = hashlib.md5(username + ':' + Dahua_realm + ':' + password + '').hexdigest().upper()
-        PASS = ''+ username + ':' + Dahua_random + ':' + PWDDB_HASH + ''
-        RANDOM_HASH = hashlib.md5(PASS).hexdigest().upper()
-
-    #	print "[i] MD5 hash:",PWDDB_HASH
-    #	print "[i] Random value to encrypt with:",Dahua_random
-    #	print "[i] Built password:",PASS
-    #	print "[i] MD5 generated login hash:",RANDOM_HASH
-        return RANDOM_HASH
 
 
     def channelIsMine(self,channelname="",channelid=-1):
@@ -248,14 +146,14 @@ class DahuaDevice():
 
         return -1
 
-    # def ChannelList(self,channel):
-	# 	query_args = {"method":"configManager.getConfig",
+    #def ChannelList(self,channel):
+	#	query_args = {"method":"configManager.getConfig",
 	# 		"params": {
 	# 			"name":"ChannelTitle"
 	# 		},
 	# 		"session":self.SessionID,
 	# 		"id":1}
-
+    #
 	# 	print "[>] Get ChannelList:"
     #     url = '{}://{}:{}{}'.format(self.protocol, self.host, self.port, '/RPC2')
     #     response = requests.put(url,auth=requests.auth.HTTPDigestAuth(self.user,self.password),data=json.dumps(query_args))
@@ -276,6 +174,7 @@ class DahuaDevice():
                 channel=channel
             )
         image = None
+        _LOGGER.info("Snapshot Url: " + imageurl)
         if self.auth == "digest":
             image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPDigestAuth(self.user, self.password)).content
         else:
@@ -290,97 +189,8 @@ class DahuaDevice():
                 #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
                 
                 self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
-        except Exception,ex:
+        except Exception as ex:
             _LOGGER.error("Error sending image: " + str(ex))
-
-
-
-    # def RPCConnect(self,channel):
-    #     URI = '/RPC2_Login'
-	# 	credentials = self.user + ":" + self.password
-	# 	response = HTTPconnect(rhost,proto,verbose,credentials,raw_request,noexploit).Send(URI,headers,query_args,None)
-	# 	Dahua_json = json.load(response)
-	# 	if verbose:
-	# 		print json.dumps(Dahua_json,sort_keys=True,indent=4, separators=(',', ': '))
-
-	# 	SessionID = Dahua_json['session']
-
-	# 	#
-	# 	# Gen3 login
-	# 	#
-
-	# 	if Dahua_json['params']['encryption'] == 'Default':
-	# 		print "[i] Detected generation 3 encryption"
-
-	# 		RANDOM_HASH = dahua_md5_hash(Dahua_json['params']['random'],Dahua_json['params']['realm'], self.user, self.password)
-	# 		print "[>] Logging in"
-
-	# 		query_args = {"method":"global.login",
-	# 			"session":SessionID,
-	# 			"params":{
-	# 				"userName":self.user,
-	# 				"password":RANDOM_HASH,
-	# 				"clientType":"Web3.0",
-	# 				"passwordType":"Default",
-	# 				"authorityType":"Default"},
-	# 			"id":10000}
-
-	# 		URI = '/RPC2_Login'
-	# 		response = HTTPconnect(rhost,proto,verbose,credentials,raw_request,noexploit).Send(URI,headers,query_args,SessionID)
-	# 		Dahua_json = json.load(response)
-	# 		if verbose:
-	# 			print Dahua_json
-	# 		if Dahua_json['result'] == True:
-	# 			print "[<] Login OK"
-	# 		elif Dahua_json['result'] == False:
-	# 			print "[<] Login failed: {} ({})".format(Dahua_json['error']['message'],Dahua_json['params']['error'])
-	# 			sys.exit(1)
-
-	# 	#
-	# 	# Gen2 login
-	# 	#
-
-	# 	elif Dahua_json['params']['encryption'] == 'OldDigest':
-	# 		print "[i] Detected generation 2 encryption"
-
-	# 		HASH = sofia_hash(password)
-
-	# 		print "[>] Logging in"
-
-	# 		query_args = {"method":"global.login",
-	# 			"session":SessionID,
-	# 			"params":{
-	# 				"userName":username,
-	# 				"password":HASH,
-	# 				"clientType":"Web3.0",
-	# 				"authorityType":"Default"},
-	# 			"id":10000}
-
-	# 		URI = '/RPC2_Login'
-	# 		response = HTTPconnect(rhost,proto,verbose,credentials,raw_request,noexploit).Send(URI,headers,query_args,SessionID)
-	# 		Dahua_json = json.load(response)
-	# 		if verbose:
-	# 			print Dahua_json
-
-	# 		if Dahua_json['result'] == True:
-	# 			print "[<] Login OK"
-	# 		elif Dahua_json['result'] == False:
-	# 			print "[<] Login failed: {}".format(Dahua_json['error']['message'])
-	# 			sys.exit(1)
-
-	# 	elif Dahua_json['params']['encryption'] == 'Basic':
-	# 		print "LDAP / AD not supported"
-	# 		sys.exit(1)
-	# 	elif Dahua_json['params']['encryption'] == 'WatchNet':
-	# 		print "Watchnet not supported"
-	# 		sys.exit(1)
-	# 	else:
-	# 		print "Unknown encryption {}".format(Dahua_json['params']['encryption'])
-	# 		sys.exit(1)
-
-	# 	# Get channel list
-	# 	response = ChannelList()
-		
 
 
 
@@ -400,13 +210,23 @@ class DahuaDevice():
         Data = data.decode("utf-8", errors="ignore")
         _LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
 
+        crossData = ""
+
         for Line in Data.split("\r\n"):
             if Line == "HTTP/1.1 200 OK":
                 self.OnConnect()
 
             if not Line.startswith("Code="):
-                continue
-
+                 continue
+            # elif (crossLineFlag or crossRegionFlag) and not Line.startswith("}"):
+            #     crossData = crossData + Line
+            #     continue
+            # elif (crossLineFlag or crossRegionFlag) and Line.startswith("}"): 
+            #     crossData = crossData + Line
+            #     crossLineFlag = False
+            #     crossRegionFlag = False
+            #    #process the data.
+            
             Alarm = dict()
             Alarm["name"] = self.Name
             for KeyValue in Line.split(';'):
@@ -426,14 +246,34 @@ class DahuaDevice():
                     if not self.client.connected_flag:
                         self.client.reconnect()
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
-                    #if self.alerts:
+                    if self.alerts:
                         #possible new process:
                         #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                        #process = threading.Thread(target=self.SnapshotImage,args=(index,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
-                        #process.daemon = True                            # Daemonize thread
-                        #process.start()    
+                        process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
+                        process.daemon = True                            # Daemonize thread
+                        process.start()    
                 else:
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+            elif Alarm["Code"] ==  "CrossRegionDetection":
+                if Alarm["action"] == "Start":
+                    crossData = json.loads(Alarm["data"])
+                    _LOGGER.info("CrossRegionDetection received: " + Alarm["data"] )
+                    direction = crossData["Direction"]
+                    region = crossData["Name"]
+                    object = crossData["Object"]["ObjectType"]
+                    regionText = "{}: {} {}".format(object,direction,region)
+
+                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,regionText)
+                    if self.alerts:
+                            #possible new process:
+                            #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
+                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
+                            process.daemon = True                            # Daemonize thread
+                            process.start() 
+            elif Alarm["Code"] == "CrossLineDetection":
+                crossData = Line
+                _LOGGER.info("CrossLineDetection received: "+ crossData)
+                self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
@@ -527,7 +367,7 @@ class DahuaEventThread(threading.Thread):
             time.sleep(.05)
             heartbeat = heartbeat + 1
             if heartbeat % 1000 == 0:
-                print "heartbeat"
+                print ("heartbeat")
                 _LOGGER.debug("Heartbeat")
                 if not self.client.connected_flag:
                     self.client.reconnect()
@@ -565,7 +405,7 @@ class DahuaEventThread(threading.Thread):
     def mqtt_on_connect(self, client, userdata, flags, rc):
         if rc==0:
             _LOGGER.info("Connected to MQTT OK Returned code={0}".format(rc))
-            client.connected_flag=True
+            self.client.connected_flag=True
             self.client.publish(self.basetopic +"/$online",True,0,False)
             self.client.publish(self.basetopic +"/$version",version)
             if self.alerts:
@@ -581,11 +421,11 @@ class DahuaEventThread(threading.Thread):
             
         else:
             _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format("self.Name",rc) )
-            client.connected_flag=False
+            self.client.connected_flag=False
 
     def mqtt_on_disconnect(self, client, userdata, rc):
         logging.info("disconnecting reason  "  +str(rc))
-        client.connected_flag=False
+        self.client.connected_flag=False
         
 
     def mqtt_on_picture_message(self,client, userdata, msg):
@@ -602,6 +442,21 @@ class DahuaEventThread(threading.Thread):
     
                     
     def mqtt_on_alert_message(self,client, userdata, msg):
+        if msg.payload == 'ON':
+            newState = True
+        else:
+            newState = False
+
+        deviceName = msg.topic.split('/')[1]
+        _LOGGER.info("Camera: {0}: Msg Received: Topic:{1} Payload:{2}".format(deviceName,msg.topic,msg.payload))
+        for device in self.Devices:
+            #channel = self.Devices[device].channelIsMine("Garage")
+            if device.Name == deviceName:
+                device.alerts = newState
+                _LOGGER.info("Turning Alerts {0}".format( newState))
+                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",msg.payload)
+
+    def mqtt_on_cross_message(self,client, userdata, msg):
         if msg.payload == 'ON':
             newState = True
         else:
@@ -648,7 +503,7 @@ if __name__ == '__main__':
                     channelName = channel.split(':')[1]
                     channels[int(channelIndex)] = channelName
                     
-            except Exception,e:
+            except Exception as e:
                 _LOGGER.error("Error Reading channel list:" + str(e))
             camera["channels"] = channels
             cameras.append(camera)
@@ -660,7 +515,7 @@ if __name__ == '__main__':
         dahua_event = DahuaEventThread(mqtt,cameras)
 
         dahua_event.start()
-    except Exception,ex:
+    except Exception as ex:
         _LOGGER.error("Error starting:" + str(ex))
 
     

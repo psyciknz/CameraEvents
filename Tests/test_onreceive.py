@@ -40,11 +40,113 @@ def test_dahua_create():
     device = create_device()
     assert device is not None
 
-def test_dahua_receive():
+def test_dahua_receive_video_motion():
     device = create_device()
     data = "--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1"
     device.OnReceive(data)
     
+    pass
+
+def test_dahua_receive_crossRegion():
+    device = create_device()
+    data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
+    '"Action" : "Cross",' \
+    '"Class" : "Normal",' \
+    '"CountInGroup" : 1,' \
+    '"DetectRegion" : [ ' \
+    '   [ 789, 3839 ], ' \
+    '   [ 789, 3866 ],' \
+    '   [ 2124, 2649 ],' \
+    '   [ 3135, 2757 ], ' \
+    '   [ 3721, 2190 ], ' \
+    '   [ 6371, 3893 ], ' \
+    '   [ 7766, 5217 ], ' \
+    '   [ 7422, 8083 ], ' \
+    '   [ 1982, 8110 ] ' \
+    '], ' \
+    '"Direction" : "Enter", ' \
+    '"EventSeq" : 3, ' \
+    '"FrameSequence" : 2781, ' \
+    '"GroupID" : 0, ' \
+    '"IndexInGroup" : 0, ' \
+    '"LocaleTime" : "2019-01-31 18:04:58", ' \
+    '"Mark" : 0, ' \
+    '"Name" : "Courtyard", ' \
+    '"Object" : { ' \
+    ' "Action" : "Appear", ' \
+    ' "BoundingBox" : [ 680, 1176, 1864, 5880 ], ' \
+    ' "Center" : [ 1272, 3528 ], ' \
+    ' "Confidence" : 0, ' \
+    ' "FrameSequence" : 0, ' \
+    ' "LowerBodyColor" : [ 0, 0, 0, 0 ], ' \
+    ' "MainColor" : [ 0, 0, 0, 0 ], ' \
+    ' "ObjectID" : 84, ' \
+    ' "ObjectType" : "Human", ' \
+    ' "RelativeID" : 0, ' \
+    ' "Source" : 0.0, ' \
+    ' "Speed" : 0, ' \
+    ' "SpeedTypeInternal" : 0 ' \
+    '}, ' \
+    '"PTS" : 42951682690.0, ' \
+    '"RuleId" : 1, ' \
+    '"Sequence" : 0, ' \
+    '"Source" : 30670016.0, ' \
+    '"Track" : null, ' \
+    '"UTC" : 1548929098.0, ' \
+    '"UTCMS" : 633 ' \
+    '} ' 
+    device.OnReceive(data)
+    
     assert device is not None
 
+def test_dahua_receive_crossLine():
+    device = create_device()
+    data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
+    '"Action" : "Cross",' \
+    '"Class" : "Normal",' \
+    '"CountInGroup" : 1,' \
+    '"DetectRegion" : [ ' \
+    '   [ 789, 3839 ], ' \
+    '   [ 789, 3866 ],' \
+    '   [ 2124, 2649 ],' \
+    '   [ 3135, 2757 ], ' \
+    '   [ 3721, 2190 ], ' \
+    '   [ 6371, 3893 ], ' \
+    '   [ 7766, 5217 ], ' \
+    '   [ 7422, 8083 ], ' \
+    '   [ 1982, 8110 ] ' \
+    '], ' \
+    '"Direction" : "Enter", ' \
+    '"EventSeq" : 3, ' \
+    '"FrameSequence" : 2781, ' \
+    '"GroupID" : 0, ' \
+    '"IndexInGroup" : 0, ' \
+    '"LocaleTime" : "2019-01-31 18:04:58", ' \
+    '"Mark" : 0, ' \
+    '"Name" : "Courtyard", ' \
+    '"Object" : { ' \
+    ' "Action" : "Appear", ' \
+    ' "BoundingBox" : [ 680, 1176, 1864, 5880 ], ' \
+    ' "Center" : [ 1272, 3528 ], ' \
+    ' "Confidence" : 0, ' \
+    ' "FrameSequence" : 0, ' \
+    ' "LowerBodyColor" : [ 0, 0, 0, 0 ], ' \
+    ' "MainColor" : [ 0, 0, 0, 0 ], ' \
+    ' "ObjectID" : 84, ' \
+    ' "ObjectType" : "Human", ' \
+    ' "RelativeID" : 0, ' \
+    ' "Source" : 0.0, ' \
+    ' "Speed" : 0, ' \
+    ' "SpeedTypeInternal" : 0 ' \
+    '}, ' \
+    '"PTS" : 42951682690.0, ' \
+    '"RuleId" : 1, ' \
+    '"Sequence" : 0, ' \
+    '"Source" : 30670016.0, ' \
+    '"Track" : null, ' \
+    '"UTC" : 1548929098.0, ' \
+    '"UTCMS" : 633 ' \
+    '} ' 
+    device.OnReceive(data)
     
+    assert device is not None
