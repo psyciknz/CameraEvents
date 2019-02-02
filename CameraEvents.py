@@ -176,12 +176,13 @@ class DahuaDevice():
             )
         image = None
         _LOGGER.info("Snapshot Url: " + imageurl)
-        if self.auth == "digest":
-            image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPDigestAuth(self.user, self.password)).content
-        else:
-            image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
-        
         try:
+            if self.auth == "digest":
+                image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPDigestAuth(self.user, self.password)).content
+            else:
+                image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
+        
+        
             if image is not None and len(image) > 0:
                 #construct image payload
                 #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
