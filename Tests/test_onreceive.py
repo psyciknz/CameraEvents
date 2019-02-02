@@ -99,7 +99,7 @@ def test_dahua_receive_crossRegion():
     
     assert device is not None
 
-def test_dahua_receive_crossRegion():
+def test_dahua_receive_crossRegion_NoDirection():
     device = create_device()
     data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
     '"Action" : "Cross",' \
@@ -151,53 +151,43 @@ def test_dahua_receive_crossRegion():
     assert device is not None
 
 def test_dahua_receive_crossLine():
-    device = create_device()
-    data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
-    '"Action" : "Cross",' \
-    '"Class" : "Normal",' \
-    '"CountInGroup" : 1,' \
-    '"DetectRegion" : [ ' \
-    '   [ 789, 3839 ], ' \
-    '   [ 789, 3866 ],' \
-    '   [ 2124, 2649 ],' \
-    '   [ 3135, 2757 ], ' \
-    '   [ 3721, 2190 ], ' \
-    '   [ 6371, 3893 ], ' \
-    '   [ 7766, 5217 ], ' \
-    '   [ 7422, 8083 ], ' \
-    '   [ 1982, 8110 ] ' \
-    '], ' \
-    '"Direction" : "Enter", ' \
-    '"EventSeq" : 3, ' \
-    '"FrameSequence" : 2781, ' \
-    '"GroupID" : 0, ' \
-    '"IndexInGroup" : 0, ' \
-    '"LocaleTime" : "2019-01-31 18:04:58", ' \
-    '"Mark" : 0, ' \
-    '"Name" : "Courtyard", ' \
-    '"Object" : { ' \
-    ' "Action" : "Appear", ' \
-    ' "BoundingBox" : [ 680, 1176, 1864, 5880 ], ' \
-    ' "Center" : [ 1272, 3528 ], ' \
-    ' "Confidence" : 0, ' \
-    ' "FrameSequence" : 0, ' \
-    ' "LowerBodyColor" : [ 0, 0, 0, 0 ], ' \
-    ' "MainColor" : [ 0, 0, 0, 0 ], ' \
-    ' "ObjectID" : 84, ' \
-    ' "ObjectType" : "Human", ' \
-    ' "RelativeID" : 0, ' \
-    ' "Source" : 0.0, ' \
-    ' "Speed" : 0, ' \
-    ' "SpeedTypeInternal" : 0 ' \
-    '}, ' \
-    '"PTS" : 42951682690.0, ' \
-    '"RuleId" : 1, ' \
-    '"Sequence" : 0, ' \
-    '"Source" : 30670016.0, ' \
-    '"Track" : null, ' \
-    '"UTC" : 1548929098.0, ' \
-    '"UTCMS" : 633 ' \
-    '} ' 
-    device.OnReceive(data)
+   device = create_device()
+   data = 'Code=CrossLineDetection;action=Start;index=0;data={'\
+   '"Class" : "Normal",'\
+   '"CountInGroup" : 1,'\
+   '"DetectLine" : ['\
+   '   [ 3843, 5677 ],'\
+   '   [ 6512, 5136 ]'\
+   '],'\
+   '"Direction" : "RightToLeft",'\
+   '"EventSeq" : 1,'\
+   '"FrameSequence" : 8723,'\
+   '"GroupID" : 1,'\
+   '"IndexInGroup" : 0,'\
+   '"LocaleTime" : "2019-02-02 16:10:50",'\
+   '"Mark" : 0,'\
+   '"Name" : "Gate",'\
+   '"Object" : {'\
+   '   "Action" : "Appear",'\
+   '   "BoundingBox" : [ 2944, 3520, 5072, 7872 ],'\
+   '   "Center" : [ 4008, 5696 ],'\
+   '   "Confidence" : 0,'\
+   '   "FrameSequence" : 0,'\
+   '   "ObjectID" : 105,'\
+   '   "ObjectType" : "Smoke",'\
+   '   "RelativeID" : 0,'\
+   '   "Source" : 0.0,'\
+   '   "Speed" : 0,'\
+   '   "SpeedTypeInternal" : 0'\
+   '},'\
+   '"PTS" : 42950631010.0,'\
+   '"RuleId" : 1,'\
+   '"Sequence" : 0,'\
+   '"Source" : 36149128.0,'\
+   '"Track" : null,'\
+   '"UTC" : 1549080650.0,'\
+   '"UTCMS" : 702'\
+   '} '
+   device.OnReceive(data)
     
-    assert device is not None
+   assert device is not None

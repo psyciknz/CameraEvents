@@ -255,10 +255,10 @@ class DahuaDevice():
                         process.start()    
                 else:
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
-            elif Alarm["Code"] ==  "CrossRegionDetection":
+            elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
                     crossData = json.loads(Alarm["data"])
-                    _LOGGER.info("CrossRegionDetection received: " + Alarm["data"] )
+                    _LOGGER.info(Alarm["Code"] + " received: " + Alarm["data"] )
                     if "Direction" not in crossData:
                         direction = "unknown"                        
                     else:
@@ -272,13 +272,13 @@ class DahuaDevice():
                     if self.alerts:
                             #possible new process:
                             #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
+                            if Alarm["Code"] == "CrossRegionDetection":
+                                code = "Cross Region"
+                            else:
+                                code = "Cross Line"
+                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"{0}: {1}".format(code,Alarm["channel"])))
                             process.daemon = True                            # Daemonize thread
                             process.start() 
-            elif Alarm["Code"] == "CrossLineDetection":
-                crossData = Line
-                _LOGGER.info("CrossLineDetection received: "+ crossData)
-                self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
