@@ -267,7 +267,7 @@ class DahuaDevice():
 
                     region = crossData["Name"]
                     object = crossData["Object"]["ObjectType"]
-                    regionText = "{} With {} in {} direction for {} region".format(object,direction,region)
+                    regionText = "{} With {} in {} direction for {} region".format(Alarm["Code"],object,direction,region)
 
                     self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] ,regionText)
                     if self.alerts:
