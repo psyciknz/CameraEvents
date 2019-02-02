@@ -73,7 +73,7 @@ An alert messafge will be posted to the topic as follows:
 ```
 CameraEvents/<code>/<channel> 
 ```
-Where code is VideoMotion, CrossLineDetection etc (as per the config events).  Channel, will either be the channel name or the channel number.
+Where code is VideoMotion (as per the config events).  Channel, will either be the channel name or the channel number.
 The payload will be ON/OFF for using as a motion detector.
 
 eg
@@ -83,7 +83,15 @@ CameraEvents/NVR:3/Image {"message": "Motion Detected: NVR:3", "imagebase64": "<
 CameraEvents/VideoMotion/NVR:3 OFF
 ```
 
-
-# Problems
-As per some new firmware, the snapshot image command has stopped working, and the channel list.  I'm attempting to find a work around.
+IVS Messages are a bit more message like.
+eg
+```
+CameraEvents/IVS/Garage CrossLineDetection With Human in RightToLeft direction for Gate region
+```
+I'll add specifics later for IVS, as I've seen the "human" be vehicle and smoke also...I'll problably add a fitler for these.
+# Problems/Change History
+2019-02-02 - Found Solution to  to snapshot problem, but new firmware (for me) is index+1 - this isn't currently configurable.
+           - Added IVS topic.
+	   - Added travis testing.
+2019-01-15 - As per some new firmware, the snapshot image command has stopped working, and the channel list.  I'm attempting to find a work around.
 
