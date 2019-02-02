@@ -22,7 +22,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.0.5"
+version = "0.1.0"
 
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -277,7 +277,7 @@ class DahuaDevice():
                                 code = "Cross Region"
                             else:
                                 code = "Cross Line"
-                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"{0}: {1}".format(code,Alarm["channel"])))
+                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"{0}: {1}: {2}".format(code,Alarm["channel"],regionText)))
                             process.daemon = True                            # Daemonize thread
                             process.start() 
             else:
