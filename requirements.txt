@@ -2,4 +2,4 @@ paho-mqtt
 pycurl
 ConfigParser
 requests
-json
+
