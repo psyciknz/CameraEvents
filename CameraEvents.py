@@ -22,7 +22,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.1.0"
+version = "0.1.1"
 
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -267,17 +267,13 @@ class DahuaDevice():
 
                     region = crossData["Name"]
                     object = crossData["Object"]["ObjectType"]
-                    regionText = "{}: {} {}".format(object,direction,region)
+                    regionText = "{} With {} in {} direction for {} region".format(object,direction,region)
 
-                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,regionText)
+                    self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] ,regionText)
                     if self.alerts:
                             #possible new process:
                             #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                            if Alarm["Code"] == "CrossRegionDetection":
-                                code = "Cross Region"
-                            else:
-                                code = "Cross Line"
-                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"{0}: {1}: {2}".format(code,Alarm["channel"],regionText)))
+                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
                             process.daemon = True                            # Daemonize thread
                             process.start() 
             else:
