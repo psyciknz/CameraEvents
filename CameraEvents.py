@@ -259,7 +259,11 @@ class DahuaDevice():
                 if Alarm["action"] == "Start":
                     crossData = json.loads(Alarm["data"])
                     _LOGGER.info("CrossRegionDetection received: " + Alarm["data"] )
-                    direction = crossData["Direction"]
+                    if "Direction" not in crossData:
+                        direction = "unknown"                        
+                    else:
+                        direction = crossData["Direction"]
+
                     region = crossData["Name"]
                     object = crossData["Object"]["ObjectType"]
                     regionText = "{}: {} {}".format(object,direction,region)
@@ -476,9 +480,11 @@ if __name__ == '__main__':
     cp = ConfigParser.ConfigParser()
     _LOGGER.info("Loading config")
     filename = {"config.ini","conf/config.ini"}
-    cp.read(filename)
+    dataset = cp.read(filename)
 
     try:
+        if len(dataset) != 1:
+            raise ValueError( "Failed to open/find all files")
         camera_items = cp.items( "Cameras" )
         for key, camera_key in camera_items:
             #do something with path
