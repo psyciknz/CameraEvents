@@ -1,4 +1,6 @@
-# CameraEvents
+# CameraEvents [![Build Status](https://travis-ci.com/psyciknz/CameraEvents.svg?branch=master)](https://travis-ci.com/psyciknz/CameraEvents)
+
+
 
 Docker/Python service for attaching to Dahua camera events api.  Posts messages to mqtt upon events.
 
