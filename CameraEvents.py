@@ -22,7 +22,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.0.4"
+version = "0.0.5"
 
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
