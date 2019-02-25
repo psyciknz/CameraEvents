@@ -10,6 +10,9 @@ Can post an image into the mqtt payload also (which https://github.com/jpmens/mq
 
 I build and run in docker mostly.  Will work out how to post on dockerhub.
 
+Otherwise, clone into a directory, create the config file, and run with python CameraEvents.py
+
+
 # Configuration.
 
 Copy the config-master.ini to config.ini in the directory with the script.
