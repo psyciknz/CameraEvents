@@ -2,3 +2,4 @@ config.ini
 .vscode/settings.json
 *.pyc
 .pytest_cache/*
+build.config

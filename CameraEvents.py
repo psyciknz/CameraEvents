@@ -220,14 +220,6 @@ class DahuaDevice():
 
             if not Line.startswith("Code="):
                  continue
-            # elif (crossLineFlag or crossRegionFlag) and not Line.startswith("}"):
-            #     crossData = crossData + Line
-            #     continue
-            # elif (crossLineFlag or crossRegionFlag) and Line.startswith("}"): 
-            #     crossData = crossData + Line
-            #     crossLineFlag = False
-            #     crossRegionFlag = False
-            #    #process the data.
             
             Alarm = dict()
             Alarm["name"] = self.Name
@@ -258,17 +250,22 @@ class DahuaDevice():
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
-                    crossData = json.loads(Alarm["data"])
-                    _LOGGER.info(Alarm["Code"] + " received: " + Alarm["data"] )
-                    if "Direction" not in crossData:
-                        direction = "unknown"                        
-                    else:
-                        direction = crossData["Direction"]
+                    regionText = Alarm["Code"]
+                    try:
 
-                    region = crossData["Name"]
-                    object = crossData["Object"]["ObjectType"]
-                    regionText = "{} With {} in {} direction for {} region".format(Alarm["Code"],object,direction,region)
+                        crossData = json.loads(Alarm["data"])
+                        _LOGGER.info(Alarm["Code"] + " received: " + Alarm["data"] )
+                        if "Direction" not in crossData:
+                            direction = "unknown"                        
+                        else:
+                            direction = crossData["Direction"]
 
+                        region = crossData["Name"]
+                        object = crossData["Object"]["ObjectType"]
+                        regionText = "{} With {} in {} direction for {} region".format(Alarm["Code"],object,direction,region)
+                    except Exception,ivsExcept:
+                        _LOGGER.error("Error getting IVS data: " + str(ivsExcept))
+                        
                     self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] ,regionText)
                     if self.alerts:
                             #possible new process:
