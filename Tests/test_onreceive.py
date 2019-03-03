@@ -20,6 +20,7 @@ def create_device():
     device_cfg["host"] =  "19.168.1.108"
     device_cfg["port"] = 80
     device_cfg["alerts"] = False
+    device_cfg["snapshotoffset"] = 0
     client = dummy_mqtt()
     client.connected_flag = True
 

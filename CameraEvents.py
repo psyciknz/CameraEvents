@@ -89,6 +89,7 @@ class DahuaDevice():
         self.alerts = device_cfg.get("alerts")
         self.client = client
         self.basetopic = basetopic
+        self.snapshotoffset = device_cfg.get("snapshotoffset")
 
         #generate the event url
         self.url = self.EVENT_TEMPLATE.format(
@@ -246,7 +247,7 @@ class DahuaDevice():
                     if self.alerts:
                         #possible new process:
                         #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                        process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
+                        process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
                         process.daemon = True                            # Daemonize thread
                         process.start()    
                 else:
@@ -273,7 +274,7 @@ class DahuaDevice():
                     if self.alerts:
                             #possible new process:
                             #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                            process = threading.Thread(target=self.SnapshotImage,args=(index+1,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
+                            process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
                             process.daemon = True                            # Daemonize thread
                             process.start() 
             else:
@@ -438,7 +439,7 @@ class DahuaEventThread(threading.Thread):
             channel = device.channelIsMine(msgchannel)
             if channel > -1:
                 _LOGGER.debug("Found Camera: {0} channel: {1}: Name:{2}".format(device.Name,channel,device.channels[channel]))
-                device.SnapshotImage(channel,msgchannel,"Snap Shot Image")
+                device.SnapshotImage(channel+device.snapshotoffset,msgchannel,"Snap Shot Image")
                 break
     
                     
