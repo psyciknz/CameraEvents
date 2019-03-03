@@ -412,7 +412,7 @@ class DahuaEventThread(threading.Thread):
 
             for device in self.Devices:
                 device.alerts = state
-                self.client.publish(self.basetopic +"" + device.Name + "/alerts/state",state)
+                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",state)
             #self.client.subscribe(self.basetopic +"/#")
             #self.client.subscribe("CameraEventsPy/alerts")
             
