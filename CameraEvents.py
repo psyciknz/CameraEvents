@@ -12,7 +12,12 @@ import threading
 import requests
 import datetime
 import re
-import ConfigParser
+try:
+    #python 3+
+    from configparser import ConfigParser
+except:
+    # Python 2.7
+    from ConfigParser import ConfigParser
 import logging
 import os
 import socket
@@ -22,7 +27,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.1.1"
+version = "0.1.3"
 
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -476,7 +481,7 @@ class DahuaEventThread(threading.Thread):
 if __name__ == '__main__':
 
     cameras = []
-    cp = ConfigParser.ConfigParser()
+    cp = ConfigParser()
     _LOGGER.info("Loading config")
     filename = {"config.ini","conf/config.ini"}
     dataset = cp.read(filename)
