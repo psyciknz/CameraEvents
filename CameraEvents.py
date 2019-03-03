@@ -123,6 +123,7 @@ class DahuaDevice():
 
                 # get channel names here
                 #table.ChannelTitle[0].Name=Garage
+                _LOGGER.debug("Device " + name + " Getting channel ids: " + self.channelurl)
                 response = requests.get(self.channelurl,auth=requests.auth.HTTPDigestAuth(self.user,self.password))
                 for line in response.text.splitlines():
                     match = re.search(r'.\[(?P<index>[0-4])\]\..+\=(?P<channel>.+)',line)
@@ -132,6 +133,8 @@ class DahuaDevice():
                         self.channels[_index] = _channel
             else:
                 self.channels[0] = self.Name
+
+            _LOGGER.info("Created Data Device: " + name)
 
         except Exception as e:
             _LOGGER.debug("Device " + name + " is not an NVR: " + str(e))
@@ -308,7 +311,7 @@ class DahuaEventThread(threading.Thread):
         self.client.message_callback_add(self.basetopic +"/+/picture",self.mqtt_on_picture_message)
         self.client.message_callback_add(self.basetopic +"/+/alerts",self.mqtt_on_alert_message)
         
-        self.client.will_set(self.basetopic +"/$online",False,0,True)
+        self.client.will_set(self.basetopic +"/$online",False,qos=0,retain=True)
         
 
         self.alerts = True
@@ -342,8 +345,10 @@ class DahuaEventThread(threading.Thread):
 
         #connect to mqtt broker
         
+        _LOGGER.debug("Connecting to MQTT Broker")
         self.client.connect(mqtt["IP"], int(mqtt["port"]), 60)
         
+        _LOGGER.debug("Starting MQTT Loop")
         self.client.loop_start()
 
         threading.Thread.__init__(self)
@@ -364,8 +369,7 @@ class DahuaEventThread(threading.Thread):
             time.sleep(.05)
             heartbeat = heartbeat + 1
             if heartbeat % 1000 == 0:
-                print ("heartbeat")
-                _LOGGER.debug("Heartbeat")
+                _LOGGER.debug("Heartbeat: " + str(datetime.datetime.now()))
                 if not self.client.connected_flag:
                     self.client.reconnect()
                 self.client.publish(self.basetopic +"/$heartbeat",str(datetime.datetime.now()))
@@ -403,7 +407,7 @@ class DahuaEventThread(threading.Thread):
         if rc==0:
             _LOGGER.info("Connected to MQTT OK Returned code={0}".format(rc))
             self.client.connected_flag=True
-            self.client.publish(self.basetopic +"/$online",True,0,False)
+            self.client.publish(self.basetopic +"/$online",True,qos=0,retain=True)
             self.client.publish(self.basetopic +"/$version",version)
             if self.alerts:
                 state = "ON"
@@ -495,15 +499,23 @@ if __name__ == '__main__':
             camera["auth"] = cp.get(camera_key,'auth')
             camera["events"] = cp.get(camera_key,'events')
             channels = {}
-            try:
-                channellist = cp.get(camera_key,'channels').split('|')
-                for channel in channellist:
-                    channelIndex = channel.split(':')[0]
-                    channelName = channel.split(':')[1]
-                    channels[int(channelIndex)] = channelName
-                    
-            except Exception as e:
-                _LOGGER.error("Error Reading channel list:" + str(e))
+            if cp.has_option(camera_key,'channels'):
+                try:
+                    channellist = cp.get(camera_key,'channels').split('|')
+                    for channel in channellist:
+                        channelIndex = channel.split(':')[0]
+                        channelName = channel.split(':')[1]
+                        channels[int(channelIndex)] = channelName
+                        
+                except Exception as e:
+                    _LOGGER.warning("Warning, No channel list in config (may be obtained from NVR):" + str(e))
+                    channels = {}
+
+            # added new snapshot offset section.
+            if cp.has_option(camera_key,'snapshotoffset'):
+                camera["snapshotoffset"] = cp.get(camera_key,'snapshotoffset')
+            else:
+                camera["snapshotoffset"] = 0
             camera["channels"] = channels
             cameras.append(camera)
 
