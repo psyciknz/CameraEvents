@@ -499,7 +499,7 @@ if __name__ == '__main__':
             camera["protocol"] = cp.get(camera_key,'protocol')
             camera["isNVR"] = cp.get(camera_key,'isNVR')
             camera["name"] = cp.get(camera_key,'name')
-            camera["port"] = cp.get(camera_key,'port')
+            camera["port"] = cp.getint(camera_key,'port')
             camera["user"] = cp.get(camera_key,'user')
             camera["pass"] = cp.get(camera_key,'pass')
             camera["auth"] = cp.get(camera_key,'auth')
@@ -519,7 +519,7 @@ if __name__ == '__main__':
 
             # added new snapshot offset section.
             if cp.has_option(camera_key,'snapshotoffset'):
-                camera["snapshotoffset"] = cp.get(camera_key,'snapshotoffset')
+                camera["snapshotoffset"] = cp.getint(camera_key,'snapshotoffset')
             else:
                 camera["snapshotoffset"] = 0
             camera["channels"] = channels
