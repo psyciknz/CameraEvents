@@ -202,7 +202,14 @@ class DahuaDevice():
                 self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
         except Exception as ex:
             _LOGGER.error("Error sending image: " + str(ex))
-
+            try:
+                imagepayload = ""
+                with open("default.png", 'rb') as thefile:
+                    imagepayload = thefile.read().encode("base64")
+                msgpayload = json.dumps({"message":"ERR:" + message, "imagebase64": imagepayload})
+                self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
+            except:
+                pass
 
 
     # Connected to camera
