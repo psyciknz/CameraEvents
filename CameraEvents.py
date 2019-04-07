@@ -68,7 +68,7 @@ class DahuaDevice():
     CHANNEL_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/configManager.cgi?action=getConfig&name=ChannelTitle"
     SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?channel={channel}"
     #SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?chn={channel}"
-    SNAPSHOT_EVENT = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attachFileProc&Flags[0]=Event&Events=%5B{events}%5D"
+    SNAPSHOT_EVENT = "{protocol}://{host}:{port}/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[{events}]"
      #cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]    
 
     
@@ -95,6 +95,15 @@ class DahuaDevice():
         self.client = client
         self.basetopic = basetopic
         self.snapshotoffset = device_cfg.get("snapshotoffset")
+
+        self.boundary = "myboundary"
+        self.Data = ""
+        self.inBinarySection = False
+        self.contentLength = None
+        self.contentType = None
+        #self.callback = HandleBinData
+        self.foundBoundary = 0
+        self.count = 0
 
         #generate the event url
         self.url = self.EVENT_TEMPLATE.format(
@@ -202,6 +211,12 @@ class DahuaDevice():
                 self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
         except Exception as ex:
             _LOGGER.error("Error sending image: " + str(ex))
+            try:
+                msgpayload = json.dumps({"message":message,"imagebase64":None})
+                self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
+            except:
+                pass
+
 
 
 
@@ -216,13 +231,94 @@ class DahuaDevice():
         self.Connected = False
 
     #on receive data from camera.
+    def OnReceiveMixed(self, data):
+        #self.client.loop_forever()
+        #Data = data.decode("utf-8", errors="ignore")
+        self.Data += data
+        eol = 0
+        #Data = data.decode("utf-8", errors="ignore")
+        #_LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
+
+        linedata = ""
+
+        crossData = ""
+        while eol >= 0 and not self.inBinarySection:
+            eol = self.Data.find("\r\n")
+            if eol < 0: 
+                continue
+
+            li = self.Data[:eol]
+            _LOGGER.debug("Line:" + li)
+            linedata = linedata + "\r\n" + li
+
+            self.Data = self.Data[eol+2:]
+            if eol == 0 and self.foundBoundary:
+                _LOGGER.debug("In binary section")  
+                self.inBinarySection = True
+                return
+
+            #Boundary mark
+            if li == self.boundary:  
+                _LOGGER.debug("Found boundary")       
+                self.foundBoundary = 1
+
+            #Two different styles of boundary marks
+            if li == "--"+self.boundary: 
+                _LOGGER.debug("Found boundary style 2")     
+                self.foundBoundary = 1
+
+            if li[:15].lower()=="content-length:":
+                self.contentLength = int(li[15:].strip())
+                _LOGGER.debug("Settng Content Length:" + li[15:].strip())    
+            if li[:13].lower()=="content-type:":
+                self.contentType = li[13:].strip()
+                _LOGGER.debug("Settng Content type:" + li[13:].strip())    
+
+            if self.inBinarySection and self.contentLength is None:
+                _LOGGER.debug("Binary Section content length None")
+                #If content length is not specified, look for the end of jpeg
+                jpegEnd = '\xff\xd9'
+                twoLineBreaks = jpegEnd+'\r\n\r\n'+self.boundary
+                eol = self.Data.find(twoLineBreaks)
+
+                if eol >= 0:
+                    #print ":".join("{0:x}".format(ord(c)) for c in self.rxBuff[eol-10:eol+10])
+
+                    binData = self.Data[:eol+2]
+                    _LOGGER.debug("Some binary data to write")
+                    fi = open("test"+str(self.count)+".jpeg","wb")
+                    fi.write(binData)
+                    fi.close()
+                    self.count += 1
+                    #self.callback(self.contentType, binData)
+
+                    self.Data = self.Data[eol+2:]
+                    self.contentLength = None
+                    self.inBinarySection = False
+                    self.contentType = None
+                    self.foundBoundary = 0
+
+            if self.inBinarySection and self.contentLength is not None and len(self.Data) >= self.contentLength:
+                _LOGGER.debug("Binary Section, not None Content Length")
+                binData = self.Data[:self.contentLength]
+                #self.callback(self.contentType, binData)
+                
+
+                self.Data = self.Data[self.contentLength:]
+                self.contentLength = None
+                self.inBinarySection = False
+                self.contentType = None
+                self.foundBoundary = 0    
+
+    #on receive data from camera.
     def OnReceive(self, data):
         #self.client.loop_forever()
         Data = data.decode("utf-8", errors="ignore")
         _LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
 
-        crossData = ""
-
+        #deal with the non binary data.
+        #Data = data.decode("utf-8", errors="ignore")
+        _LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
         for Line in Data.split("\r\n"):
             if Line == "HTTP/1.1 200 OK":
                 self.OnConnect()
@@ -330,7 +426,7 @@ class DahuaEventThread(threading.Thread):
             CurlObj = pycurl.Curl()
             device.CurlObj = CurlObj
 
-            CurlObj.setopt(pycurl.URL, device.url)
+            CurlObj.setopt(pycurl.URL, device.snapshotevents)
             
             CurlObj.setopt(pycurl.CONNECTTIMEOUT, 30)
             CurlObj.setopt(pycurl.TCP_KEEPALIVE, 1)
@@ -342,12 +438,12 @@ class DahuaEventThread(threading.Thread):
             else:
                 CurlObj.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH)
                 CurlObj.setopt(pycurl.USERPWD, "%s:%s" % (device.user, device.password))
-            CurlObj.setopt(pycurl.WRITEFUNCTION, device.OnReceive)
+            CurlObj.setopt(pycurl.WRITEFUNCTION, device.OnReceiveMixed)
 
             self.CurlMultiObj.add_handle(CurlObj)
             self.NumCurlObjs += 1
 
-            _LOGGER.debug("Added Dahua device at: %s", device.url)
+            _LOGGER.debug("Added Dahua device at: %s", device.snapshotevents)
 
         #connect to mqtt broker
         
@@ -367,9 +463,11 @@ class DahuaEventThread(threading.Thread):
         while 1:
             Ret, NumHandles = self.CurlMultiObj.perform()
             if Ret != pycurl.E_CALL_MULTI_PERFORM:
+                #_LOGGER.debug("Dahua Ret: %s", Ret)
                 break
 
         Ret = self.CurlMultiObj.select(1.0)
+        #_LOGGER.debug("Dahua Ret: %s", Ret)
         while not self.stopped.isSet():
             # Sleeps to ease load on processor
             time.sleep(.05)
@@ -381,11 +479,12 @@ class DahuaEventThread(threading.Thread):
                 self.client.publish(self.basetopic +"/$heartbeat",str(datetime.datetime.now()))
 
             Ret, NumHandles = self.CurlMultiObj.perform()
-
+            #_LOGGER.debug("Dahua Ret: %s NumHandles: %s Expected Objs: %s" % (Ret,NumHandles,self.NumCurlObjs))
             if NumHandles != self.NumCurlObjs:
                 _, Success, Error = self.CurlMultiObj.info_read()
-
+                
                 for CurlObj in Success:
+                    _LOGGER.debug("Dahua Success: %s", CurlObj.getinfo(pycurl.RESPONSE_CODE))
                     DahuaDevice = next(iter(filter(lambda x: x.CurlObj == CurlObj, self.Devices)), None)
                     if DahuaDevice.Reconnect:
                         _LOGGER.debug("Dahua Reconnect: %s", DahuaDevice.Name)
@@ -405,6 +504,24 @@ class DahuaEventThread(threading.Thread):
                 for DahuaDevice in self.Devices:
                     if DahuaDevice.Reconnect and DahuaDevice.Reconnect < time.time():
                         self.CurlMultiObj.remove_handle(DahuaDevice.CurlObj)
+
+                        CurlObj = pycurl.Curl()
+                        DahuaDevice.CurlObj = CurlObj
+
+                        CurlObj.setopt(pycurl.URL, DahuaDevice.snapshotevents)
+                        
+                        CurlObj.setopt(pycurl.CONNECTTIMEOUT, 30)
+                        CurlObj.setopt(pycurl.TCP_KEEPALIVE, 1)
+                        CurlObj.setopt(pycurl.TCP_KEEPIDLE, 30)
+                        CurlObj.setopt(pycurl.TCP_KEEPINTVL, 15)
+                        if DahuaDevice.auth == 'digest':
+                            CurlObj.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH_DIGEST)
+                            CurlObj.setopt(pycurl.USERPWD, "%s:%s" % (DahuaDevice.user,DahuaDevice.password))
+                        else:
+                            CurlObj.setopt(pycurl.HTTPAUTH, pycurl.HTTPAUTH)
+                            CurlObj.setopt(pycurl.USERPWD, "%s:%s" % (DahuaDevice.user, DahuaDevice.password))
+                        CurlObj.setopt(pycurl.WRITEFUNCTION, DahuaDevice.OnReceiveMixed)
+
                         self.CurlMultiObj.add_handle(DahuaDevice.CurlObj)
                         DahuaDevice.Reconnect = None
             #if Ret != pycurl.E_CALL_MULTI_PERFORM: break
