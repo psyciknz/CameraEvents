@@ -8,14 +8,25 @@ Can post an image into the mqtt payload also (which https://github.com/jpmens/mq
 
 # Running
 
-I build and run in docker mostly.  Will work out how to post on dockerhub.
+I build and run in docker mostly.  It's built on a amd64 linux machine but I create images for arm32v7 and arm64v8.  Which is why there is a Dockerfile.cross instead of just a regular docker file.  
+
+Copy the sample config.master.ini to config.ini
+
+Run command:
+```
+docker run -v <config path>:/opt/cameraevents/conf psyciknz/cameraevents
+```
+Config path is the path where the config.ini file will exist.
 
 Otherwise, clone into a directory, create the config file, and run with python CameraEvents.py
+
+The Dockerfile.cross is what I use for cross architecture builds.  So it is not directly buildable as it needs some modifications to remove the qemu emulation for building an arm32 image on an amd.  The instructions for building are a little hard to describe here.
+
 
 
 # Configuration.
 
-Copy the config-master.ini to config.ini in the directory with the script.
+Copy the config-master.ini to config.ini in the directory with the script (or where the <config path> is set to if using the docker run command)
 
 Set your mqtt options below:
 ```
@@ -74,7 +85,7 @@ CameraEvents/$online False
 ```
 Which is the last will and testament that can show you the service is alive.
 
-An alert messafge will be posted to the topic as follows:
+An alert message will be posted to the topic as follows:
 ```
 CameraEvents/<code>/<channel> 
 ```
@@ -95,6 +106,7 @@ CameraEvents/IVS/Garage CrossLineDetection With Human in RightToLeft direction f
 ```
 I'll add specifics later for IVS, as I've seen the "human" be vehicle and smoke also...I'll problably add a fitler for these.
 # Problems/Change History
+
 2019-02-02 
 - Found Solution to snapshot problem, but new firmware (for me) is index+1 - this isn't currently configurable.
   - Added IVS topic.
