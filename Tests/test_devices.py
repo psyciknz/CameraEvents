@@ -62,6 +62,8 @@ def test_dahua_take_snapshot():
     device.host = 'cam-nvr.andc.nz'
     device.user = 'IOS'
     device.password = 'Dragon25'
-    device.SnapshotImage(1,"Garage","message")
-    
-    pass
+    image = device.SnapshotImage(1,"Garage","message",nopublish=True)
+    assert image is not None
+    if len(image) > 600:
+        sized = True
+    assert sized is True

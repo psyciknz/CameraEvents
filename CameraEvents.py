@@ -176,7 +176,7 @@ class DahuaDevice():
 	# 	print result
     
 
-    def SnapshotImage(self, channel, channelName, message):
+    def SnapshotImage(self, channel, channelName, message,nopublish=False):
         imageurl  = self.SNAPSHOT_TEMPLATE.format(
                 host=self.host,
                 protocol=self.protocol,
@@ -191,25 +191,31 @@ class DahuaDevice():
             else:
                 image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
         
-        
+            imagepayload = ""
             if image is not None and len(image) > 0:
+                #fp = open("image.jpg", "wb")
+                #fp.write(image) #r.text is the binary data for the PNG returned by that php script
+                #fp.close()
                 #construct image payload
                 #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
-                imgpayload = base64.encodestring(image)
-                msgpayload = json.dumps({"message":message,"imagebase64":imgpayload})
+                imagepayload = (base64.encodebytes(image)).decode("utf-8")
+                msgpayload = json.dumps({"message":message,"imagebase64":imagepayload})
                 #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
                 
-                self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
+                if not nopublish:
+                    self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
         except Exception as ex:
             _LOGGER.error("Error sending image: " + str(ex))
             try:
-                imagepayload = ""
+                
                 with open("default.png", 'rb') as thefile:
                     imagepayload = thefile.read().encode("base64")
                 msgpayload = json.dumps({"message":"ERR:" + message, "imagebase64": imagepayload})
-                self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
+                if not nopublish:
+                    self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
             except:
                 pass
+        return image
 
 
     # Connected to camera
