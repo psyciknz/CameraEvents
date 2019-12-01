@@ -217,6 +217,75 @@ class DahuaDevice():
                 pass
         return image
 
+    def SearchImages(self,channel,starttime, endtime, events):
+        #Create Finder
+        #http://<ip>/cgi-bin/mediaFileFind.cgi?action=factory.create 
+        MEDIA_FINDER="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=factory.create"
+        MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}&condition.Channel={channel}" + \
+            "&condition.StartTime={starttime}&condition.EndTime={endtime}&condition.Types[0]=jpg&condition.Flag[0]=Event" \
+            "&condition.Events[0]={events}"
+
+        #Start Find
+        #http://<ip>/cgi-bin/mediaFileFind.cgi?action=findFile&object=<objectId>&condition.Channel=<channel>&condition.StartTime=
+        #  <start>&condition.EndTime=<end>&condition.Dirs[0]=<dir>&condition.Types[0]=<type>&condition.Flag[0]=<flag>&condition.E vents[0]=<event>
+        #Start to find file wth the above condition. 
+        # If start successfully, return true, else return false. 
+        #  object : The object Id is got from interface in 10.1.1 
+        #  Create condition.Channel: in which channel you want to find the file . 
+        # condition.StartTime/condition.EndTime: the start/end time when recording. 
+        # condition.Dirs: in which directories you want to find the file. It is an array. 
+        #   The index starts from 0. The range of dir is {“/mnt/dvr/sda0”, “/mnt/dvr/sda1”}. 
+        #   This condition can be omitted. If omitted, find files in all the directories. 
+        # condition.Types: which types of the file you want to find. It is an array. 
+        #   The index starts from 0. The range of type is {“dav”,“jpg”, “mp4”}. If omitted, 
+        #   find files with all the types. 
+        # condition.Flags: which flags of the file you want to find. It is an array. 
+        #   The index starts from 0. The range of flag is {“Timing”, “Manual”, “Marker”, “Event”, “Mosaic”, “Cutout”}. 
+        #   If omitted, find files with all the flags. 
+        # condition.Event: by which event the record file is triggered. It is an array. 
+        #   The index starts from 0. The range of event is {“AlarmLocal”, “VideoMotion”, “VideoLoss”, “VideoBlind”, “Traffic*”}. 
+        #   This condition can be omitted. If omitted, find files of all the events. 
+        #   Example: Find file in channel 1, in directory “/mnt/dvr/sda0",event type is "AlarmLocal" or 
+        #   "VideoMotion", file type is “dav”, and time between 2011-1-1 12:00:00 and 2011-1-10 12:00:00 , 
+        #   URL is: http://<ip>/cgi-bin/mediaFileFind.cgi?action=findFile&object=08137&condition.Channel=1&conditon.Dir[0]=”/mnt/dvr/sda0”& conditon.Event[0]=AlarmLocal&conditon.Event[1]=VideoMotion&condition.StartTime=2011-1-1%2012:00:00&condition.EndTi me=2011-1-10%2012:00:00
+
+        #Find next File
+        # http://<ip>/cgi-bin/mediaFileFind.cgi?action=findNextFile&object=<objectId>&count=<fileCount> Comment 
+        MEDIA_NEXT="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={object}&count=1"
+        
+        #Close Finder
+        #http://<ip>/cgi-bin/mediaFileFind.cgi?action=close&object=<objectId> 
+        MEDIA_CLOSE="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=close&object={object}"
+
+        finderurl  = MEDIA_FINDER.format(
+                host=self.host,
+                protocol=self.protocol,
+                port  = self.port
+            )
+        
+        s = requests.Session()
+        _LOGGER.info("Finder Url: " + finderurl)
+        try:
+            #first request needs authentication
+            if self.auth == "digest":
+                result = s.get(finderurl, stream=True,auth=requests.auth.HTTPDigestAuth(self.user, self.password)).content
+            else:
+                result = s.get(finderurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
+
+            #result = b'result=3021795080\r\n' 
+            # Get the object id of the finder request, needed for subsequent searches
+            objectId = self.ConvertLinesToDict(result.decode())
+
+            
+
+            # Close the media object
+            finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,object=objectId["result"])
+            result = s.get(finderurl).content
+
+        except Exception as ex:
+            pass
+
+        return ""
 
     # Connected to camera
     def OnConnect(self):
@@ -306,7 +375,20 @@ class DahuaDevice():
             #mqttc.disconnect()
             #self.hass.bus.fire("dahua_event_received", Alarm)
 
-    
+    def ConvertLinesToDict(self,Data):
+        results = dict()
+
+        if Data is type(list):
+            for Line in Data.split("\r\n"):
+                for KeyValue in Line.split(';'):
+                    Key, Value = KeyValue.split('=')
+                    results[Key] = Value.replace("\r\n","")
+        else:
+            for KeyValue in Data.split(';'):
+                Key, Value = KeyValue.split('=')
+                results[Key] = Value.replace("\r\n","")
+
+        return results
 
 
 

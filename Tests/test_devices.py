@@ -67,3 +67,14 @@ def test_dahua_take_snapshot():
     if len(image) > 600:
         sized = True
     assert sized is True
+
+def test_dahua_search_images():
+    device = create_device()
+    device.host = 'cam-nvr.andc.nz'
+    device.user = 'IOS'
+    device.password = 'Dragon25'
+    result = device.SearchImages(1,"","","")
+    assert result is not None
+    #if len(image) > 600:
+    #    sized = True
+    #assert sized is True
