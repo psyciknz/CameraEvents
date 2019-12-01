@@ -279,7 +279,7 @@ class DahuaDevice():
                         region = crossData["Name"]
                         object = crossData["Object"]["ObjectType"]
                         regionText = "{} With {} in {} direction for {} region".format(Alarm["Code"],object,direction,region)
-                    except Exception,ivsExcept:
+                    except Exception as ivsExcept:
                         _LOGGER.error("Error getting IVS data: " + str(ivsExcept))
                         
                     self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] ,regionText)

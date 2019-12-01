@@ -1,5 +1,11 @@
 import pytest
 import CameraEvents
+try:
+    #python 3+
+    from configparser import ConfigParser
+except:
+    # Python 2.7
+    from ConfigParser import ConfigParser
 
 class dummy_mqtt(object):
     pass
@@ -17,7 +23,7 @@ def create_device():
     device_cfg["auth"] = "digest"
     device_cfg["mqtt"] = "localhsot"
     device_cfg["protocol"]  = "http"
-    device_cfg["host"] =  "19.168.1.108"
+    device_cfg["host"] =  "192.168.1.108"
     device_cfg["port"] = 80
     device_cfg["alerts"] = False
     device_cfg["snapshotoffset"] = 0
@@ -29,22 +35,33 @@ def create_device():
     device = CameraEvents.DahuaDevice("Camera", device_cfg, client,basetopic)
     return device
 
-def func(x):
-    return x + 1
+def read_config():
+    cp = ConfigParser()
+    filename = {"config.ini","conf/config.ini"}
+    dataset = cp.read(filename)
 
-def test_answer():
-    assert func(3) == 4
-
-def test_answer2():
-    assert func(3) == 4
+    try:
+        if len(dataset) != 1:
+            raise ValueError( "Failed to open/find all files")
+        camera_items = cp.items( "Cameras" )
+        for key, camera_key in camera_items:
+            #do something with path
+            camera_cp = cp.items(camera_key)
+            camera = {}
+            #temp = cp.get(camera_key,"host")
+            camera["host"] = cp.get(camera_key,'host')
+    except Exception as ex:
+        pass
 
 def test_dahua_create():
     device = create_device()
     assert device is not None
 
-def test_dahua_receive_video_motion():
+def test_dahua_take_snapshot():
     device = create_device()
-    data = "--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1"
-    device.OnReceive(data)
+    device.host = 'cam-nvr.andc.nz'
+    device.user = 'IOS'
+    device.password = 'Dragon25'
+    device.SnapshotImage(1,"Garage","message")
     
     pass
