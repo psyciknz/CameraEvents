@@ -177,6 +177,11 @@ class DahuaDevice():
     
 
     def SnapshotImage(self, channel, channelName, message,nopublish=False):
+        """Takes a snap shot image for the specified channel
+        channel (index number starts at 1)
+        channelName if known for messaging
+        message message to post
+        nopublish True/False for posting to MQTT"""
         imageurl  = self.SNAPSHOT_TEMPLATE.format(
                 host=self.host,
                 protocol=self.protocol,
@@ -217,13 +222,31 @@ class DahuaDevice():
                 pass
         return image
 
+    
     def SearchImages(self,channel,starttime, endtime, events):
+        """Searches for images for the channel
+        channel is a numerical channel index (starts at 1)
+        starttime is the start search time
+        endtime is the end search time (or now)
+        events is a list of event types"""
         #Create Finder
         #http://<ip>/cgi-bin/mediaFileFind.cgi?action=factory.create 
         MEDIA_FINDER="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=factory.create"
         MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}&condition.Channel={channel}" + \
             "&condition.StartTime={starttime}&condition.EndTime={endtime}&condition.Types[0]=jpg&condition.Flag[0]=Event" \
             "&condition.Events[0]={events}"
+        MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}" + \
+            "&condition.Channel={channel}" + \
+            "&condition.StartTime={starttime}&condition.EndTime={endtime}" + \
+            "&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=jpg"
+            #&condition.Types=%5b0%5d=jpg" 
+            #&condition.Types[0]=jpg
+            #&condition.Flags[0]=Event&condition.Types[0]=jpg
+            #&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=jpg
+            #%5B{events}%5D
+        #MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}" + \
+        #    "&condition.Channel={channel}" + \
+        #    "&condition.StartTime=2019-12-05%2006:20:48&condition.EndTime=2019-12-05%2009:28:48&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=jpg"
 
         #Start Find
         #http://<ip>/cgi-bin/mediaFileFind.cgi?action=findFile&object=<objectId>&condition.Channel=<channel>&condition.StartTime=
@@ -251,8 +274,10 @@ class DahuaDevice():
 
         #Find next File
         # http://<ip>/cgi-bin/mediaFileFind.cgi?action=findNextFile&object=<objectId>&count=<fileCount> Comment 
-        MEDIA_NEXT="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={object}&count=1"
+        MEDIA_NEXT="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={object}&count=50"
         
+        MEDIA_LOADFILE="{protocol}://{host}:{port}/cgi-bin/RPC_Loadfile/{file}"
+
         #Close Finder
         #http://<ip>/cgi-bin/mediaFileFind.cgi?action=close&object=<objectId> 
         MEDIA_CLOSE="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=close&object={object}"
@@ -262,27 +287,64 @@ class DahuaDevice():
                 protocol=self.protocol,
                 port  = self.port
             )
-        
+        objectId = ""
+        cookies = {}
         s = requests.Session()
+        if self.auth == "digest":
+            auth = requests.auth.HTTPDigestAuth(self.user, self.password)
+        else:
+            auth = auth=requests.auth.HTTPBasicAuth(self.user, self.password)
+
         _LOGGER.info("Finder Url: " + finderurl)
         try:
             #first request needs authentication
             if self.auth == "digest":
-                result = s.get(finderurl, stream=True,auth=requests.auth.HTTPDigestAuth(self.user, self.password)).content
+                result = s.get(finderurl, stream=True,auth=auth,cookies=cookies).content
             else:
-                result = s.get(finderurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
+                result = s.get(finderurl, stream=True,auth=auth,cookies=cookies).content
 
             #result = b'result=3021795080\r\n' 
             # Get the object id of the finder request, needed for subsequent searches
-            objectId = self.ConvertLinesToDict(result.decode())
+            objectId = self.ConvertLinesToDict(result.decode())["result"]
 
-            
+            # perform a search.  Startime and endtime in the following format: 2011-1-1%2012:00:00
+            finderurl = MEDIA_START.format(host=self.host,protocol=self.protocol,port=self.port,
+                object=objectId,channel=channel,
+                starttime=starttime.strftime("%Y-%m-%d%%20%H:%M:%S"),
+                endtime=endtime.strftime("%Y-%m-%d%%20%H:%M:%S"),
+                events="*")
+            #finderurl = finderurl + requests.utils.quote("&condition.Types[0]=jpg")
+            result = s.get(finderurl, stream=True,auth=auth,cookies=cookies)
+            items = []
+            if result.status_code == 200:
+                finderurl = MEDIA_NEXT.format(host=self.host,protocol=self.protocol,port=self.port,object=objectId)
+                result = s.get(finderurl,auth=auth,cookies=cookies)
+                mediaItem = {}
+                if result.status_code == 200:
+                    mediaItem = self.ConvertLinesToDict(result.content.decode())
+                    #b'found=1\r\nitems[0].Channel=0\r\nitems[0].Cluster=204831\r\n
+                    # items[0].CutLength=856064\r\nitems[0].Disk=8\r\n
+                    # items[0].EndTime=2019-12-05 00:28:36\r\n
+                    # items[0].FilePath=/mnt/dvr/2019-12-05/000/dav/00/1/0/204831/00.00.00-00.28.36[R][0@0][0].dav\r\n
+                    # items[0].Flags[0]=Timing\r\nitems[0].Length=734920704\r\n
+                    # items[0].Partition=0\r\nitems[0].StartTime=2019-12-05 00:00:00\r\n
+                    # items[0].Type=dav\r\nitems[0].VideoStream=Main\r\n'
+                    print(mediaItem)
+                    items.append(mediaItem)
+                    result = s.get(finderurl,auth=auth,cookies=cookies)
+
 
             # Close the media object
-            finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,object=objectId["result"])
-            result = s.get(finderurl).content
+            finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
+                object=objectId)
+            result = s.get(finderurl,auth=auth,cookies=cookies).content
 
         except Exception as ex:
+            # if there's been an error and we've got an object id, close the finder.
+            if len(objectId) > 0:
+                finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
+                object=objectId)
+                result = s.get(finderurl,auth=auth,cookies=cookies).content
             pass
 
         return ""
@@ -378,15 +440,16 @@ class DahuaDevice():
     def ConvertLinesToDict(self,Data):
         results = dict()
 
-        if Data is type(list):
-            for Line in Data.split("\r\n"):
-                for KeyValue in Line.split(';'):
-                    Key, Value = KeyValue.split('=')
-                    results[Key] = Value.replace("\r\n","")
-        else:
-            for KeyValue in Data.split(';'):
+        for Line in Data.split("\r\n"):
+            if len(Line) == 0:
+                return results
+            for KeyValue in Line.split(';'):
                 Key, Value = KeyValue.split('=')
                 results[Key] = Value.replace("\r\n","")
+        #else:
+        #    for KeyValue in Data.split(';'):
+        #        Key, Value = KeyValue.split('=')
+        #        results[Key] = Value.replace("\r\n","")
 
         return results
 

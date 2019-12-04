@@ -1,5 +1,6 @@
 import pytest
 import CameraEvents
+import datetime
 try:
     #python 3+
     from configparser import ConfigParser
@@ -73,7 +74,9 @@ def test_dahua_search_images():
     device.host = 'cam-nvr.andc.nz'
     device.user = 'IOS'
     device.password = 'Dragon25'
-    result = device.SearchImages(1,"","","")
+    starttime = datetime.datetime.now() - datetime.timedelta(hours=5)
+    endtime = datetime.datetime.now()
+    result = device.SearchImages(1, starttime,endtime,"")
     assert result is not None
     #if len(image) > 600:
     #    sized = True
