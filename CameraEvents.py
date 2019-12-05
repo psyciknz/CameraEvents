@@ -12,6 +12,7 @@ import threading
 import requests
 import datetime
 import re
+import imageio
 try:
     #python 3+
     from configparser import ConfigParser
@@ -321,16 +322,33 @@ class DahuaDevice():
                 result = s.get(finderurl,auth=auth,cookies=cookies)
                 mediaItem = {}
                 if result.status_code == 200:
+                    # Close the media find object
+                    finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
+                        object=objectId)
+                    result = s.get(finderurl,auth=auth,cookies=cookies).content
+
+                    #start downloading the images.
                     mediaItem = self.ConvertLinesToDict(result.content.decode())
-                    imagecount = 0
+                    images = []
+                    imagesize = 0
+                    expectedsize = 0
                     for item in mediaItem:
-                        imagecount = imagecount + 1
                         loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,
                             file=item['FilePath'])
                         result = s.get(loadurl,auth=auth,cookies=cookies)
-                        fp = open("image" + str(imagecount) + ".jpg", "wb")
-                        fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
-                        fp.close()
+                        imagesize = len(result.content)
+                        expectedsize =  int(item['Length'])
+                        expectedsize = int(float(expectedsize) * 0.95)
+                        if imagesize >= expectedsize:
+                            try:
+                                images.append(imageio.imread(result.content))
+                            except:
+                                pass
+                        #fp = open("image" + str(imagecount) + ".jpg", "wb")
+                        #fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
+                        #fp.close()
+                        
+                    imageio.mimsave('movie.gif',images, duration=1.5)
                     #'found': '3', 
                     #'items[0].Channel': '0', 
                     #'items[0].Cluster': '171757', 
