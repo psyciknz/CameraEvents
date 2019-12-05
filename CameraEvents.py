@@ -357,7 +357,7 @@ class DahuaDevice():
                         
                     imageio.mimsave('movie.gif',images, duration=1.5)
                     try:
-                        slack = Slacker('xoxp-345355929810-345355929906-409058664710-cae600209283c2b5167465818cc53090')
+                        slack = Slacker(token)
                         with open('movie.gif', 'rb') as f:
                             slack.files.upload(file_=BytesIO(f.read()),
                                 title="Image'",
