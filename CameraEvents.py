@@ -276,7 +276,7 @@ class DahuaDevice():
         # http://<ip>/cgi-bin/mediaFileFind.cgi?action=findNextFile&object=<objectId>&count=<fileCount> Comment 
         MEDIA_NEXT="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={object}&count=50"
         
-        MEDIA_LOADFILE="{protocol}://{host}:{port}/cgi-bin/RPC_Loadfile/{file}"
+        MEDIA_LOADFILE="{protocol}://{host}:{port}/cgi-bin/RPC_Loadfile{file}"
 
         #Close Finder
         #http://<ip>/cgi-bin/mediaFileFind.cgi?action=close&object=<objectId> 
@@ -322,22 +322,33 @@ class DahuaDevice():
                 mediaItem = {}
                 if result.status_code == 200:
                     mediaItem = self.ConvertLinesToDict(result.content.decode())
-                    #b'found=1\r\nitems[0].Channel=0\r\nitems[0].Cluster=204831\r\n
-                    # items[0].CutLength=856064\r\nitems[0].Disk=8\r\n
-                    # items[0].EndTime=2019-12-05 00:28:36\r\n
-                    # items[0].FilePath=/mnt/dvr/2019-12-05/000/dav/00/1/0/204831/00.00.00-00.28.36[R][0@0][0].dav\r\n
-                    # items[0].Flags[0]=Timing\r\nitems[0].Length=734920704\r\n
-                    # items[0].Partition=0\r\nitems[0].StartTime=2019-12-05 00:00:00\r\n
-                    # items[0].Type=dav\r\nitems[0].VideoStream=Main\r\n'
-                    print(mediaItem)
-                    items.append(mediaItem)
-                    result = s.get(finderurl,auth=auth,cookies=cookies)
+                    imagecount = 0
+                    for item in mediaItem:
+                        imagecount = imagecount + 1
+                        loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,
+                            file=item['FilePath'])
+                        result = s.get(loadurl,auth=auth,cookies=cookies)
+                        fp = open("image" + str(imagecount) + ".jpg", "wb")
+                        fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
+                        fp.close()
+                    #'found': '3', 
+                    #'items[0].Channel': '0', 
+                    #'items[0].Cluster': '171757', 
+                    #'items[0].Disk': '9',
+                    #'items[0].EndTime': '2019-12-06 08:33:29', 
+                    #'items[0].FilePath': '/mnt/dvr/2019-12-06...0][0].jpg', 
+                    #'items[0].Length': '674816', 
+                    #'items[0].Partition': '1', 
+                    #'items[0].StartTime': '2019-12-06 08:33:29', 
+                    #'items[0].Type': 'jpg',
+                    #'items[0].VideoStream': 'Main',
+                    #result = s.get(finderurl,auth=auth,cookies=cookies)
 
-
-            # Close the media object
+            # Close the media find object
             finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
                 object=objectId)
             result = s.get(finderurl,auth=auth,cookies=cookies).content
+
 
         except Exception as ex:
             # if there's been an error and we've got an object id, close the finder.
@@ -439,19 +450,45 @@ class DahuaDevice():
 
     def ConvertLinesToDict(self,Data):
         results = dict()
-
+        items = []
+        currentIndex = ''
+        indexCount = 0
         for Line in Data.split("\r\n"):
             if len(Line) == 0:
-                return results
-            for KeyValue in Line.split(';'):
-                Key, Value = KeyValue.split('=')
+                if len(items) > 0:
+                    items.append(results)
+                    return items
+                else:
+                    return results
+            if Line.find("[") > -1:
+                if 'found' in results:
+                    indexCount = int(results['found'])
+                    results = dict()
+                #array value found
+                #items[0].Channel': '0'
+                Item, Value = Line.split('=')
+                Index, Key = Item.split(".")
+                if currentIndex == '':
+                    currentIndex = Index
+                #Index= Index.replace("]","")
+                if Index != currentIndex:
+                    currentIndex = Index
+                    items.append(results)
+                    results = dict()
                 results[Key] = Value.replace("\r\n","")
+            else:
+
+                for KeyValue in Line.split(';'):
+                    Key, Value = KeyValue.split('=')
+                    results[Key] = Value.replace("\r\n","")
         #else:
         #    for KeyValue in Data.split(';'):
         #        Key, Value = KeyValue.split('=')
         #        results[Key] = Value.replace("\r\n","")
-
-        return results
+        if len(items) > 0:
+            return items
+        else:
+            return results
 
 
 

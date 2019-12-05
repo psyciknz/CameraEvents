@@ -74,7 +74,7 @@ def test_dahua_search_images():
     device.host = 'cam-nvr.andc.nz'
     device.user = 'IOS'
     device.password = 'Dragon25'
-    starttime = datetime.datetime.now() - datetime.timedelta(hours=5)
+    starttime = datetime.datetime.now() - datetime.timedelta(minutes=120)
     endtime = datetime.datetime.now()
     result = device.SearchImages(1, starttime,endtime,"")
     assert result is not None
