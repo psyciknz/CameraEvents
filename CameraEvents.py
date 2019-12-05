@@ -13,6 +13,11 @@ import requests
 import datetime
 import re
 import imageio
+from PIL import ImageFile
+from PIL import Image
+from io import BytesIO
+
+from slacker import Slacker
 try:
     #python 3+
     from configparser import ConfigParser
@@ -29,7 +34,7 @@ import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
 version = "0.1.3"
-
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
 _LOGGER = logging.getLogger(__name__)
@@ -316,19 +321,18 @@ class DahuaDevice():
                 events="*")
             #finderurl = finderurl + requests.utils.quote("&condition.Types[0]=jpg")
             result = s.get(finderurl, stream=True,auth=auth,cookies=cookies)
-            items = []
             if result.status_code == 200:
                 finderurl = MEDIA_NEXT.format(host=self.host,protocol=self.protocol,port=self.port,object=objectId)
                 result = s.get(finderurl,auth=auth,cookies=cookies)
                 mediaItem = {}
                 if result.status_code == 200:
-                    # Close the media find object
-                    finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
-                        object=objectId)
-                    result = s.get(finderurl,auth=auth,cookies=cookies).content
-
                     #start downloading the images.
                     mediaItem = self.ConvertLinesToDict(result.content.decode())
+                    finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
+                        object=objectId)
+                    
+                    # Close the media find object
+                    result = s.get(finderurl,auth=auth,cookies=cookies).content
                     images = []
                     imagesize = 0
                     expectedsize = 0
@@ -338,17 +342,29 @@ class DahuaDevice():
                         result = s.get(loadurl,auth=auth,cookies=cookies)
                         imagesize = len(result.content)
                         expectedsize =  int(item['Length'])
-                        expectedsize = int(float(expectedsize) * 0.95)
+                        expectedsize = int(float(expectedsize) * 0.85)
                         if imagesize >= expectedsize:
                             try:
-                                images.append(imageio.imread(result.content))
-                            except:
+                                im = Image.open(BytesIO(result.content))
+                                im.resize((im.size[0] // 2, im.size[1] // 2), Image.ANTIALIAS) 
+                                images.append(im)
+                            except Exception as imgEx:
+                                print(str(imgEx))
                                 pass
                         #fp = open("image" + str(imagecount) + ".jpg", "wb")
                         #fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
                         #fp.close()
                         
                     imageio.mimsave('movie.gif',images, duration=1.5)
+                    try:
+                        slack = Slacker('xoxp-345355929810-345355929906-409058664710-cae600209283c2b5167465818cc53090')
+                        with open('movie.gif', 'rb') as f:
+                            slack.files.upload(file_=BytesIO(f.read()),
+                                title="Image'",
+                                channels=slack.channels.get_channel_id('camera'),
+                                filetype='gif')
+                    except Exception as slackEx:
+                        print(str(slackEx))
                     #'found': '3', 
                     #'items[0].Channel': '0', 
                     #'items[0].Cluster': '171757', 
@@ -361,12 +377,6 @@ class DahuaDevice():
                     #'items[0].Type': 'jpg',
                     #'items[0].VideoStream': 'Main',
                     #result = s.get(finderurl,auth=auth,cookies=cookies)
-
-            # Close the media find object
-            finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
-                object=objectId)
-            result = s.get(finderurl,auth=auth,cookies=cookies).content
-
 
         except Exception as ex:
             # if there's been an error and we've got an object id, close the finder.
@@ -455,6 +465,12 @@ class DahuaDevice():
                             process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
                             process.daemon = True                            # Daemonize thread
                             process.start() 
+                            starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                            endtime = datetime.datetime.now()
+                            process2 = threading.Thread(target=self.SearchImages,args=(index,starttime,endtime,"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
+                            process2.daemon = True                            # Daemonize thread
+                            process2.start() 
+
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
