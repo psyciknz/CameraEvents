@@ -98,6 +98,7 @@ class DahuaDevice():
         self.host = device_cfg.get("host")
         self.port = device_cfg.get("port")
         self.alerts = device_cfg.get("alerts")
+        self.token = device_cfg.get("token")
         self.client = client
         self.basetopic = basetopic
         self.snapshotoffset = device_cfg.get("snapshotoffset")
@@ -357,7 +358,7 @@ class DahuaDevice():
                         
                     imageio.mimsave('movie.gif',images, duration=1.5)
                     try:
-                        slack = Slacker(token)
+                        slack = Slacker(self.token)
                         with open('movie.gif', 'rb') as f:
                             slack.files.upload(file_=BytesIO(f.read()),
                                 title="Image'",
@@ -467,7 +468,7 @@ class DahuaDevice():
                             process.start() 
                             starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
                             endtime = datetime.datetime.now()
-                            process2 = threading.Thread(target=self.SearchImages,args=(index,starttime,endtime,"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
+                            process2 = threading.Thread(target=self.SearchImages,args=(index,starttime,endtime,"IVS: {0}: {1}".format(Alarm["channel"],regionText),self.token))
                             process2.daemon = True                            # Daemonize thread
                             process2.start() 
 
@@ -547,7 +548,6 @@ class DahuaEventThread(threading.Thread):
         self.client.message_callback_add(self.basetopic +"/+/alerts",self.mqtt_on_alert_message)
         
         self.client.will_set(self.basetopic +"/$online",False,qos=0,retain=True)
-        
 
         self.alerts = True
 
@@ -752,12 +752,19 @@ if __name__ == '__main__':
             else:
                 camera["snapshotoffset"] = 0
             camera["channels"] = channels
+
+            token = ""
+            if cp.has_option("Slack","token"):
+                token = cp.get("Slack","token")
+                camera["token"] = token
+
             cameras.append(camera)
 
         mqtt = {}
         mqtt["IP"] = cp.get("MQTT Broker","IP")
         mqtt["port"] = cp.get("MQTT Broker","port")
         mqtt["basetopic"] = cp.get("MQTT Broker","BaseTopic")
+        
         dahua_event = DahuaEventThread(mqtt,cameras)
 
         dahua_event.start()
