@@ -227,6 +227,8 @@ class DahuaDevice():
                     self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
             except:
                 pass
+        
+       
         return image
 
     
@@ -441,6 +443,11 @@ class DahuaDevice():
                         process.start()    
                 else:
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                    endtime = datetime.datetime.now()
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
+                    process2.daemon = True                            # Daemonize thread
+                    process2.start() 
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
                     regionText = Alarm["Code"]
@@ -461,20 +468,22 @@ class DahuaDevice():
                         
                     self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] ,regionText)
                     if self.alerts:
-                            #possible new process:
-                            #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                            process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
-                            process.daemon = True                            # Daemonize thread
-                            process.start() 
-                            starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                            endtime = datetime.datetime.now()
-                            process2 = threading.Thread(target=self.SearchImages,args=(index,starttime,endtime,"IVS: {0}: {1}".format(Alarm["channel"],regionText),self.token))
-                            process2.daemon = True                            # Daemonize thread
-                            process2.start() 
+                        #possible new process:
+                        #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
+                        process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
+                        process.daemon = True                            # Daemonize thread
+                        process.start() 
+                else:    
+                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                    endtime = datetime.datetime.now()
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
+                    process2.daemon = True                            # Daemonize thread
+                    process2.start()       
 
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
+                
             #2019-01-27 08:28:19,658 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,674 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,703 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossLineDetection
