@@ -441,13 +441,13 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
                         process.daemon = True                            # Daemonize thread
                         process.start()    
-                else:
-                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
-                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                    endtime = datetime.datetime.now()
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
-                    process2.daemon = True                            # Daemonize thread
-                    process2.start() 
+                #else:
+                #    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                #    endtime = datetime.datetime.now()
+                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
+                #    process2.daemon = True                            # Daemonize thread
+                #    process2.start() 
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
                     regionText = Alarm["Code"]
@@ -473,12 +473,12 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
                         process.daemon = True                            # Daemonize thread
                         process.start() 
-                else:    
-                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                    endtime = datetime.datetime.now()
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
-                    process2.daemon = True                            # Daemonize thread
-                    process2.start()       
+                #else:    
+                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                #    endtime = datetime.datetime.now()
+                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
+                #    process2.daemon = True                            # Daemonize thread
+                #    process2.start()       
 
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
@@ -551,6 +551,8 @@ class DahuaEventThread(threading.Thread):
         self.basetopic = mqtt["basetopic"]
 
         self.client = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
+        if not mqtt["user"] is None:
+            self.client.username_pw_set(mqtt["user"], mqtt["password"])
         self.client.on_connect = self.mqtt_on_connect
         self.client.on_disconnect = self.mqtt_on_disconnect
         self.client.message_callback_add(self.basetopic +"/+/picture",self.mqtt_on_picture_message)
@@ -773,7 +775,8 @@ if __name__ == '__main__':
         mqtt["IP"] = cp.get("MQTT Broker","IP")
         mqtt["port"] = cp.get("MQTT Broker","port")
         mqtt["basetopic"] = cp.get("MQTT Broker","BaseTopic")
-        
+        mqtt["user"] = cp.get("MQTT Broker","user",fallback=None)
+        mqtt["password"] = cp.get("MQTT Broker","password",fallback=None)
         dahua_event = DahuaEventThread(mqtt,cameras)
 
         dahua_event.start()
