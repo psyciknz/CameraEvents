@@ -551,7 +551,7 @@ class DahuaEventThread(threading.Thread):
         self.basetopic = mqtt["basetopic"]
 
         self.client = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
-        if not mqtt["user"] is None:
+        if not mqtt["user"] is None and not mqtt["user"] == '':
             self.client.username_pw_set(mqtt["user"], mqtt["password"])
         self.client.on_connect = self.mqtt_on_connect
         self.client.on_disconnect = self.mqtt_on_disconnect
