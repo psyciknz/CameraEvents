@@ -404,7 +404,7 @@ class DahuaDevice():
     #on receive data from camera.
     def OnReceive(self, data):
         #self.client.loop_forever()
-        Data = data.decode("utf-8", errors="ignore")
+        Data = data.encode().decode("utf-8", errors="ignore")
         _LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
 
         crossData = ""
@@ -431,9 +431,9 @@ class DahuaDevice():
             #mqttc.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
             if Alarm["Code"] == "VideoMotion":
                 _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
-                if Alarm["action"] == "Start":
-                    if not self.client.connected_flag:
+                if not self.client.connected_flag:
                         self.client.reconnect()
+                if Alarm["action"] == "Start":
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
                     if self.alerts:
                         #possible new process:
@@ -441,13 +441,23 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
                         process.daemon = True                            # Daemonize thread
                         process.start()    
-                #else:
-                #    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
-                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                #    endtime = datetime.datetime.now()
-                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
-                #    process2.daemon = True                            # Daemonize thread
-                #    process2.start() 
+                else: 
+                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+            elif Alarm["Code"] == "AlarmLocal":
+                _LOGGER.info("Alarm Local received: "+  Alarm["name"] + " Index: " + str(index) + " Code: " + Alarm["Code"])
+                # Start action reveived, turn alarm on.
+                if Alarm["action"] == "Start":
+                    if not self.client.connected_flag:
+                        self.client.reconnect()
+                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"ON")
+                    if self.alerts:
+                        #possible new process:
+                        #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
+                        process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
+                        process.daemon = True                            # Daemonize thread
+                        process.start()    
+                else: 
+                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"OFF")
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
                     regionText = Alarm["Code"]

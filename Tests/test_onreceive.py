@@ -2,8 +2,13 @@ import pytest
 import CameraEvents
 
 class dummy_mqtt(object):
-    pass
+    def __init__(self):
+        self.payload = ''
+        self.topic = ''
+    
     def publish(self,topic,payload):
+        self.payload = payload
+        self.topic = topic
         pass
 
 def create_device():
@@ -15,9 +20,9 @@ def create_device():
     device_cfg["user"] =  "user"
     device_cfg["password"] = "pass"
     device_cfg["auth"] = "digest"
-    device_cfg["mqtt"] = "localhsot"
+    device_cfg["mqtt"] = "localhost"
     device_cfg["protocol"]  = "http"
-    device_cfg["host"] =  "19.168.1.108"
+    device_cfg["host"] =  "192.168.1.108"
     device_cfg["port"] = 80
     device_cfg["alerts"] = False
     device_cfg["snapshotoffset"] = 0
@@ -46,8 +51,21 @@ def test_dahua_receive_video_motion():
     device = create_device()
     data = "--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1"
     device.OnReceive(data)
-    
-    pass
+    assert device.client.topic == "CameraEvents/VideoMotion/Camera:1" and device.client.payload == 'ON'
+    data = "--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Stop;index=1"
+    device.OnReceive(data)
+    assert device.client.topic == "CameraEvents/VideoMotion/Camera:1" and device.client.payload == 'OFF'
+
+
+def test_dahua_receive_alarm_local():
+    device = create_device()
+    data = "--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Start;index=1"
+    device.OnReceive(data)
+    assert device.client.topic == "CameraEvents/AlarmLocal/1" and device.client.payload == 'ON'
+    data = "--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Stop;index=1"
+    device.OnReceive(data)
+    assert device.client.topic == "CameraEvents/AlarmLocal/1" and device.client.payload == 'OFF'
+
 
 def test_dahua_receive_crossRegion():
     device = create_device()
