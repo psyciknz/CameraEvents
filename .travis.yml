@@ -1,6 +1,10 @@
 language: python
 python:
   - "3.7"
+addons:
+  apt:
+    packages:
+      - python3-dev
 # command to run tests
 install: pip install -r requirements.txt
 script: pytest test_onreceive.py
