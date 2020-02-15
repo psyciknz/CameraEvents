@@ -11,7 +11,7 @@ RUN mkdir -p /opt/cameraevents
 WORKDIR /opt/cameraevents
 
 COPY ./requirements.txt /opt/cameraevents
-RUN pip install -r /opt/cameraevents/requirements.txt
+RUN pip install --user -r /opt/cameraevents/requirements.txt
 
 # add user mqttwarn to image
 RUN groupadd -r cameraevents && useradd -r -g cameraevents cameraevents
