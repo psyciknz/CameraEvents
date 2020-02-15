@@ -17,3 +17,18 @@ install: pip install -r requirements.txt
 script: pytest ./Tests/test_onreceive.py
 # runs all but needs connection to cameras
 #script: pytest
+jobs:
+  include:
+  - stage: deploy
+    python: '3.7'
+    script: "./.travis/deploy.sh"
+    if: type != pull_request AND (branch IN (dev, master) OR tag IS present)
+    addons:
+      apt:
+        sources:
+        - sourceline: deb https://download.docker.com/linux/ubuntu/ xenial stable
+          key_url: https://download.docker.com/linux/ubuntu/gpg
+        packages:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
