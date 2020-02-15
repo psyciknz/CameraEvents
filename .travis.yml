@@ -22,7 +22,7 @@ jobs:
   - stage: deploy
     python: '3.7'
     script: "./.travis/deploy.sh"
-    if: type != pull_request AND (branch IN (dev, master) OR tag IS present)
+    if: type != pull_request AND (branch IN (alarm-local, master) OR tag IS present)
     addons:
       apt:
         sources:
