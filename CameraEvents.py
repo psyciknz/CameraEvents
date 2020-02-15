@@ -12,12 +12,12 @@ import threading
 import requests
 import datetime
 import re
-import imageio
-from PIL import ImageFile
-from PIL import Image
-from io import BytesIO
+#import imageio
+#from PIL import ImageFile
+#from PIL import Image
+#from io import BytesIO
 
-from slacker import Slacker
+#from slacker import Slacker
 try:
     #python 3+
     from configparser import ConfigParser
@@ -34,7 +34,7 @@ import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
 version = "0.1.3"
-ImageFile.LOAD_TRUNCATED_IMAGES = True
+#ImageFile.LOAD_TRUNCATED_IMAGES = True
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
 _LOGGER = logging.getLogger(__name__)
@@ -163,26 +163,7 @@ class DahuaDevice():
 
         return -1
 
-    #def ChannelList(self,channel):
-	#	query_args = {"method":"configManager.getConfig",
-	# 		"params": {
-	# 			"name":"ChannelTitle"
-	# 		},
-	# 		"session":self.SessionID,
-	# 		"id":1}
-    #
-	# 	print "[>] Get ChannelList:"
-    #     url = '{}://{}:{}{}'.format(self.protocol, self.host, self.port, '/RPC2')
-    #     response = requests.put(url,auth=requests.auth.HTTPDigestAuth(self.user,self.password),data=json.dumps(query_args))
-
-	# 	result = json.load(response.content)
-	# 	if not result['result']:
-	# 		print "Resp: ",result
-	# 		print "Error CMD: {}".format(self.string_request)
-	# 		return
-	# 	print result
-    
-
+ 
     def SnapshotImage(self, channel, channelName, message,nopublish=False):
         """Takes a snap shot image for the specified channel
         channel (index number starts at 1)
@@ -336,7 +317,7 @@ class DahuaDevice():
                     
                     # Close the media find object
                     result = s.get(finderurl,auth=auth,cookies=cookies).content
-                    images = []
+                    #images = []
                     imagesize = 0
                     expectedsize = 0
                     for item in mediaItem:
@@ -346,28 +327,28 @@ class DahuaDevice():
                         imagesize = len(result.content)
                         expectedsize =  int(item['Length'])
                         expectedsize = int(float(expectedsize) * 0.85)
-                        if imagesize >= expectedsize:
-                            try:
-                                im = Image.open(BytesIO(result.content))
-                                im.resize((im.size[0] // 2, im.size[1] // 2), Image.ANTIALIAS) 
-                                images.append(im)
-                            except Exception as imgEx:
-                                print(str(imgEx))
-                                pass
+                        #if imagesize >= expectedsize:
+                            #try:
+                            #    im = Image.open(BytesIO(result.content))
+                            #    im.resize((im.size[0] // 2, im.size[1] // 2), Image.ANTIALIAS) 
+                            #    images.append(im)
+                            #except Exception as imgEx:
+                            #    print(str(imgEx))
+                            #    pass
                         #fp = open("image" + str(imagecount) + ".jpg", "wb")
                         #fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
                         #fp.close()
                         
-                    imageio.mimsave('movie.gif',images, duration=1.5)
-                    try:
-                        slack = Slacker(self.token)
-                        with open('movie.gif', 'rb') as f:
-                            slack.files.upload(file_=BytesIO(f.read()),
-                                title="Image'",
-                                channels=slack.channels.get_channel_id('camera'),
-                                filetype='gif')
-                    except Exception as slackEx:
-                        print(str(slackEx))
+                    #imageio.mimsave('movie.gif',images, duration=1.5)
+                    #try:
+                    #    slack = Slacker(self.token)
+                    #    with open('movie.gif', 'rb') as f:
+                    #        slack.files.upload(file_=BytesIO(f.read()),
+                    #           title="Image'",
+                    ##            channels=slack.channels.get_channel_id('camera'),
+                    #            filetype='gif')
+                    #except Exception as slackEx:
+                    #    print(str(slackEx))
                     #'found': '3', 
                     #'items[0].Channel': '0', 
                     #'items[0].Cluster': '171757', 
