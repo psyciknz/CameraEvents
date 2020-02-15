@@ -14,5 +14,6 @@ before_install:
     
 # command to run tests
 install: pip install -r requirements.txt
-#script: pytest ./Tests/test_onreceive.py
-script: pytest
+script: pytest ./Tests/test_onreceive.py
+# runs all but needs connection to cameras
+#script: pytest
