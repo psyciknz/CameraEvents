@@ -5,9 +5,13 @@ FROM python:3.7-stretch
 # install python libraries (TODO: any others?)
 #RUN pip install paho-mqtt requests ConfigParser pycurl
 
+
 # build /opt/mqttwarn
 RUN mkdir -p /opt/cameraevents
 WORKDIR /opt/cameraevents
+
+COPY ./requirements.txt /opt/cameraevents
+RUN pip install -r /opt/cameraevents/requirements.txt
 
 # add user mqttwarn to image
 RUN groupadd -r cameraevents && useradd -r -g cameraevents cameraevents
@@ -15,9 +19,6 @@ RUN chown -R cameraevents /opt/cameraevents
 
 # process run as mqttwarn user
 USER cameraevents
-
-COPY ./requirements.txt /opt/cameraevents
-RUN pip install -r /opt/cameraevents/requirements.txt
 
 # conf file from host
 VOLUME ["/opt/cameraevents/conf"]
