@@ -19,7 +19,7 @@ script: pytest ./Tests/test_onreceive.py
 #script: pytest
 jobs:
   include:
-  - stage: deploy
+  - stage: build docker image
     python: '3.7'
     script: "./.travis/deploy.sh"
     if: type != pull_request AND (branch IN (alarm-local, master) OR tag IS present)
@@ -32,3 +32,5 @@ jobs:
         - docker-ce
         - docker-ce-cli
         - containerd.io
+  - stage: test
+    script: docker run --rm $DOCKER_USERNAME/cameraevents:$DOCKER_IMAGE_TAG
