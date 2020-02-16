@@ -49,10 +49,10 @@ def test_dahua_create():
 
 def test_dahua_receive_video_motion():
     device = create_device()
-    data = "--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1"
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1")
     device.OnReceive(data)
     assert device.client.topic == "CameraEvents/VideoMotion/Camera:1" and device.client.payload == 'ON'
-    data = "--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Stop;index=1"
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Stop;index=1")
     device.OnReceive(data)
     assert device.client.topic == "CameraEvents/VideoMotion/Camera:1" and device.client.payload == 'OFF'
 
@@ -78,7 +78,7 @@ def test_dahua_receive_alarm_local_Index_mismatch():
 
 def test_dahua_receive_crossRegion():
     device = create_device()
-    data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
+    data = str.encode('Code=CrossRegionDetection;action=Start;index=1;data={' \
     '"Action" : "Cross",' \
     '"Class" : "Normal",' \
     '"CountInGroup" : 1,' \
@@ -123,14 +123,14 @@ def test_dahua_receive_crossRegion():
     '"Track" : null, ' \
     '"UTC" : 1548929098.0, ' \
     '"UTCMS" : 633 ' \
-    '} ' 
+    '} ' )
     device.OnReceive(data)
     
     assert device is not None
 
 def test_dahua_receive_crossRegion_createSnapshot():
     device = create_device()
-    data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
+    data = str.encode('Code=CrossRegionDetection;action=Start;index=1;data={' \
     '"Action" : "Cross",' \
     '"Class" : "Normal",' \
     '"CountInGroup" : 1,' \
@@ -175,14 +175,14 @@ def test_dahua_receive_crossRegion_createSnapshot():
     '"Track" : null, ' \
     '"UTC" : 1548929098.0, ' \
     '"UTCMS" : 633 ' \
-    '} ' 
+    '} ' )
     device.OnReceive(data)
     
     assert device is not None
 
 def test_dahua_receive_crossRegion_NoDirection():
     device = create_device()
-    data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
+    data = str.encode('Code=CrossRegionDetection;action=Start;index=1;data={' \
     '"Action" : "Cross",' \
     '"Class" : "Normal",' \
     '"CountInGroup" : 1,' \
@@ -226,12 +226,12 @@ def test_dahua_receive_crossRegion_NoDirection():
     '"Track" : null, ' \
     '"UTC" : 1548929098.0, ' \
     '"UTCMS" : 633 ' \
-    '} ' 
+    '} ' )
     device.OnReceive(data)
     
 def test_dahua_receive_crossRegion_NoName():
     device = create_device()
-    data = 'Code=CrossRegionDetection;action=Start;index=1;data={' \
+    data = str.encode('Code=CrossRegionDetection;action=Start;index=1;data={' \
     '"Action" : "Cross",' \
     '"Class" : "Normal",' \
     '"CountInGroup" : 1,' \
@@ -274,14 +274,14 @@ def test_dahua_receive_crossRegion_NoName():
     '"Track" : null, ' \
     '"UTC" : 1548929098.0, ' \
     '"UTCMS" : 633 ' \
-    '} ' 
+    '} ' )
     device.OnReceive(data)
 
     assert device is not None
 
 def test_dahua_receive_crossLine():
    device = create_device()
-   data = 'Code=CrossLineDetection;action=Start;index=0;data={'\
+   data = str.encode('Code=CrossLineDetection;action=Start;index=0;data={'\
    '"Class" : "Normal",'\
    '"CountInGroup" : 1,'\
    '"DetectLine" : ['\
@@ -316,7 +316,7 @@ def test_dahua_receive_crossLine():
    '"Track" : null,'\
    '"UTC" : 1549080650.0,'\
    '"UTCMS" : 702'\
-   '} '
+   '} ')
    device.OnReceive(data)
     
    assert device is not None
