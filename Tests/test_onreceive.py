@@ -59,19 +59,19 @@ def test_dahua_receive_video_motion():
 
 def test_dahua_receive_alarm_local():
     device = create_device()
-    data = "--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Start;index=1"
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Start;index=1")
     device.OnReceive(data)
     assert device.client.topic == "CameraEvents/AlarmLocal/1" and device.client.payload == 'ON'
-    data = "--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Stop;index=1"
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Stop;index=1")
     device.OnReceive(data)
     assert device.client.topic == "CameraEvents/AlarmLocal/1" and device.client.payload == 'OFF'
 
 def test_dahua_receive_alarm_local_Index_mismatch():
     device = create_device()
-    data = "--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Start;index=5"
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Start;index=5")
     device.OnReceive(data)
     assert device.client.topic == "CameraEvents/AlarmLocal/5" and device.client.payload == 'ON'
-    data = "--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Stop;index=5"
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Stop;index=5")
     device.OnReceive(data)
     assert device.client.topic == "CameraEvents/AlarmLocal/5" and device.client.payload == 'OFF'
 
