@@ -33,4 +33,6 @@ jobs:
         - docker-ce-cli
         - containerd.io
   - stage: test
-    script: docker run --rm $DOCKER_USERNAME/cameraevents:$DOCKER_IMAGE_TAG
+    script: 
+      - export DOCKER_IMAGE_TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo "$TRAVIS_BRANCH-latest"; fi`
+      - docker run --rm "$DOCKER_USERNAME/cameraevents:$DOCKER_IMAGE_TAG"
