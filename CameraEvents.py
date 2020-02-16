@@ -385,10 +385,7 @@ class DahuaDevice():
     #on receive data from camera.
     def OnReceive(self, data):
         #self.client.loop_forever()
-        #if data is bytes:
         Data = data.decode("utf-8", errors="ignore")    
-        #else:
-        #    Data = data.encode().decode("utf-8", errors="ignore")
         _LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
 
         crossData = ""
