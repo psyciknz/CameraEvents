@@ -155,10 +155,15 @@ class DahuaDevice():
 
 
     def channelIsMine(self,channelname="",channelid=-1):
+        channelidInt = -1
+        if isinstance(channelid,str):
+            channelidInt = int(channelid)
+        else:
+            channelidInt = channelid
         for channel in self.channels:
             if channelname is not None and channelname == self.channels[channel]:
                 return channel
-            elif channelid > -1 and channel == channelid:
+            elif channelidInt > -1 and channel == channelidInt:
                 return channel
 
         return -1
@@ -655,7 +660,9 @@ class DahuaEventThread(threading.Thread):
             for device in self.Devices:
                 device.alerts = state
                 self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",state)
-            #self.client.subscribe(self.basetopic +"/#")
+            self.client.subscribe(self.basetopic +"/+/picture")
+            self.client.subscribe(self.basetopic +"/+/alerts")
+
             #self.client.subscribe("CameraEventsPy/alerts")
             
         else:
@@ -673,7 +680,7 @@ class DahuaEventThread(threading.Thread):
         _LOGGER.info("Picture Msg Received: Topic:{0} Payload:{1}".format(msg.topic,msg.payload))
         msgchannel = msg.topic.split("/")[1]
         for device in self.Devices:
-            channel = device.channelIsMine(msgchannel)
+            channel = device.channelIsMine(channelid=msgchannel)
             if channel > -1:
                 _LOGGER.debug("Found Camera: {0} channel: {1}: Name:{2}".format(device.Name,channel,device.channels[channel]))
                 device.SnapshotImage(channel+device.snapshotoffset,msgchannel,"Snap Shot Image")
