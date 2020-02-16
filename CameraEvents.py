@@ -364,6 +364,7 @@ class DahuaDevice():
 
         except Exception as ex:
             # if there's been an error and we've got an object id, close the finder.
+            print("Error in search images: " + str(ex))
             if len(objectId) > 0:
                 finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
                 object=objectId)
@@ -431,12 +432,12 @@ class DahuaDevice():
                     if not self.client.connected_flag:
                         self.client.reconnect()
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"ON")
-                    if self.alerts:
-                        #possible new process:
-                        #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                        process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
-                        process.daemon = True                            # Daemonize thread
-                        process.start()    
+                    # if self.alerts:
+                    #     #possible new process:
+                    #     #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
+                    #     process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
+                    #     process.daemon = True                            # Daemonize thread
+                    #     process.start()    
                 else: 
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"OFF")
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
