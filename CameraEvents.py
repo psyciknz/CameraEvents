@@ -12,6 +12,7 @@ import threading
 import requests
 import datetime
 import re
+import time
 #import imageio
 #from PIL import ImageFile
 #from PIL import Image
@@ -218,7 +219,7 @@ class DahuaDevice():
         return image
 
     
-    def SearchImages(self,channel,starttime, endtime, events):
+    def SearchImages(self,channel,starttime, endtime, events,nopublish=True, message='',delay=0):
         """Searches for images for the channel
         channel is a numerical channel index (starts at 1)
         starttime is the start search time
@@ -233,7 +234,7 @@ class DahuaDevice():
         MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}" + \
             "&condition.Channel={channel}" + \
             "&condition.StartTime={starttime}&condition.EndTime={endtime}" + \
-            "&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=jpg"
+            "&condition.Flags%5b0%5d=Manual&condition.Types%5b0%5d=jpg"
             #&condition.Types=%5b0%5d=jpg" 
             #&condition.Types[0]=jpg
             #&condition.Flags[0]=Event&condition.Types[0]=jpg
@@ -277,6 +278,9 @@ class DahuaDevice():
         #http://<ip>/cgi-bin/mediaFileFind.cgi?action=close&object=<objectId> 
         MEDIA_CLOSE="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=close&object={object}"
 
+        if delay > 0:
+            time.sleep(delay)
+
         finderurl  = MEDIA_FINDER.format(
                 host=self.host,
                 protocol=self.protocol,
@@ -306,8 +310,9 @@ class DahuaDevice():
             finderurl = MEDIA_START.format(host=self.host,protocol=self.protocol,port=self.port,
                 object=objectId,channel=channel,
                 starttime=starttime.strftime("%Y-%m-%d%%20%H:%M:%S"),
-                endtime=endtime.strftime("%Y-%m-%d%%20%H:%M:%S"),
-                events="*")
+                endtime=endtime.strftime("%Y-%m-%d%%20%H:%M:%S")
+            )
+                #,events="*")
             #finderurl = finderurl + requests.utils.quote("&condition.Types[0]=jpg")
             result = s.get(finderurl, stream=True,auth=auth,cookies=cookies)
             if result.status_code == 200:
@@ -326,13 +331,29 @@ class DahuaDevice():
                     imagesize = 0
                     expectedsize = 0
                     for item in mediaItem:
+                        _LOGGER.info("SearchImages: Found " + str(len(mediaItem)) + " images to process")
                         loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,
                             file=item['FilePath'])
                         result = s.get(loadurl,auth=auth,cookies=cookies)
                         imagesize = len(result.content)
+                        image = result.content
                         expectedsize =  int(item['Length'])
                         expectedsize = int(float(expectedsize) * 0.85)
-                        #if imagesize >= expectedsize:
+                        if imagesize >= expectedsize:
+                            imagepayload = ""
+                            if image is not None and len(image) > 0:
+                                #fp = open("image.jpg", "wb")
+                                #fp.write(image) #r.text is the binary data for the PNG returned by that php script
+                                #fp.close()
+                                #construct image payload
+                                #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
+                                imagepayload = (base64.encodebytes(image)).decode("utf-8")
+                                msgpayload = json.dumps({"message":message,"imagebase64":imagepayload})
+                                #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
+                
+                                if not nopublish:
+                                    self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
+                                    break
                             #try:
                             #    im = Image.open(BytesIO(result.content))
                             #    im.resize((im.size[0] // 2, im.size[1] // 2), Image.ANTIALIAS) 
@@ -470,12 +491,12 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
                         process.daemon = True                            # Daemonize thread
                         process.start() 
-                #else:    
-                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                #    endtime = datetime.datetime.now()
-                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,""))
-                #    process2.daemon = True                            # Daemonize thread
-                #    process2.start()       
+                else:    
+                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                    endtime = datetime.datetime.now()
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'',60))
+                    process2.daemon = True                            # Daemonize thread
+                    process2.start()       
 
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
@@ -683,7 +704,19 @@ class DahuaEventThread(threading.Thread):
             channel = device.channelIsMine(channelid=msgchannel)
             if channel > -1:
                 _LOGGER.debug("Found Camera: {0} channel: {1}: Name:{2}".format(device.Name,channel,device.channels[channel]))
-                device.SnapshotImage(channel+device.snapshotoffset,msgchannel,"Snap Shot Image")
+                if msg.payload is not None:
+                    try:
+                        datestring = ''
+                        datestring = (msg.payload).decode()
+                        d = datetime.datetime.strptime(datestring, "%Y-%m-%dT%H:%M:%S")
+                        #def SearchImages(self,channel,starttime, endtime, events):
+                        device.SearchImages(channel+device.snapshotoffset,d,d + datetime.timedelta(minutes=2),'',nopublish=False,message="Snap Shot Image"  )
+                    except Exception as searchI:
+                        _LOGGER.warn("Error searching images: " + str(searchI))
+                        d = None
+                        pass
+                else:
+                    device.SnapshotImage(channel+device.snapshotoffset,msgchannel,"Snap Shot Image")
                 break
     
                     

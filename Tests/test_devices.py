@@ -74,9 +74,9 @@ def test_dahua_search_images():
     device.host = 'cam-nvr.andc.nz'
     device.user = 'IOS'
     device.password = 'Dragon25'
-    starttime = datetime.datetime.now() - datetime.timedelta(minutes=25)
+    starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
     endtime = datetime.datetime.now()
-    result = device.SearchImages(2, starttime,endtime,"")
+    result = device.SearchImages(1, starttime,endtime,"",nopublish=True,message='')
     assert result is not None
     #if len(image) > 600:
     #    sized = True
