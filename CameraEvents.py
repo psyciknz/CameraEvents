@@ -494,7 +494,7 @@ class DahuaDevice():
                 else:    
                     starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
                     endtime = datetime.datetime.now()
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'',60))
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images',60))
                     process2.daemon = True                            # Daemonize thread
                     process2.start()       
 
