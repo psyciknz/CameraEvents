@@ -234,7 +234,7 @@ class DahuaDevice():
         MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}" + \
             "&condition.Channel={channel}" + \
             "&condition.StartTime={starttime}&condition.EndTime={endtime}" + \
-            "&condition.Flags%5b0%5d=Manual&condition.Types%5b0%5d=jpg"
+            "&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=jpg"
             #&condition.Types=%5b0%5d=jpg" 
             #&condition.Types[0]=jpg
             #&condition.Flags[0]=Event&condition.Types[0]=jpg
@@ -334,50 +334,42 @@ class DahuaDevice():
                     # Close the media find object
                     result = s.get(finderurl,auth=auth,cookies=cookies).content
                     #images = []
-                    imagesize = 0
-                    expectedsize = 0
+                    #imagesize = 0
+                    #expectedsize = 0
+                    image = None
                     _LOGGER.info("SearchImages: Found " + str(len(mediaItem)) + " images to process")
-                    for item in mediaItem:
-                        _LOGGER.debug("SearchImages: Creating url for image: " + item['FilePath'])
-                        loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=item['FilePath'])
-                        _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
+                    
+                    filepath = ""
 
-                        result = s.get(loadurl,auth=auth,cookies=cookies)
-                        imagesize = len(result.content)
-                        image = result.content
-                        expectedsize =  int(item['Length'])
-                        expectedsize = int(float(expectedsize) * 0.85)
-                        _LOGGER.debug("SearchImages: Image " + item['FilePath'] + " Expected Size: (85%)" + str(expectedsize) 
-                            + "  Downloaded Size: " + str(imagesize))
-                        if imagesize >= expectedsize:
-                            imagepayload = ""
-                            if image is not None and len(image) > 0:
-                                _LOGGER.debug("SearchImages:  This one meats size requirements: " + item['FilePath'])
-                                #fp = open("image.jpg", "wb")
-                                #fp.write(image) #r.text is the binary data for the PNG returned by that php script
-                                #fp.close()
-                                #construct image payload
-                                #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
-                                _LOGGER.info("SearchImages:   heres an image to post")
-                                imagepayload = (base64.encodebytes(image)).decode("utf-8")
-                                msgpayload = json.dumps({"message":message,"imagebase64":imagepayload})
-                                #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
-                
-                                if not nopublish:
-                                    _LOGGER.debug("SearchImages:  Publishing " + item['FilePath'])
-                                    self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
-                                    break
-                            #try:
-                            #    im = Image.open(BytesIO(result.content))
-                            #    im.resize((im.size[0] // 2, im.size[1] // 2), Image.ANTIALIAS) 
-                            #    images.append(im)
-                            #except Exception as imgEx:
-                            #    print(str(imgEx))
-                            #    pass
-                        #fp = open("image" + str(imagecount) + ".jpg", "wb")
-                        #fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
-                        #fp.close()
+                    if type(mediaItem) is list:
+                        for item in mediaItem:
+                            filepath = item['FilePath']
+                            _LOGGER.debug("SearchImages: Creating url for image: " + filepath)
+                            loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=filepath)
+                            _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
+                            result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                            #result = s.get(loadurl,auth=auth,cookies=cookies)
+                            image = self.ProcessSearchImage(item,result)
+                            if image is not None:
+                                break
+                    else:
+                        filepath = mediaItem['FilePath']
+                        _LOGGER.debug("SearchImages: Creating url for image: " + filepath)
+                        loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=filepath)
+                        _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
+                        result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                        #result = s.get(loadurl,auth=auth,cookies=cookies)
+                        image = self.ProcessSearchImage(mediaItem,result)
                         
+                    if image is not None:
+                        imagepayload = (base64.encodebytes(image)).decode("utf-8")
+                        msgpayload = json.dumps({"message":message,"imagebase64":imagepayload})
+                        #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
+
+                        if not nopublish:
+                            _LOGGER.debug("SearchImages:  Publishing " + filepath)
+                            self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
+
                     #imageio.mimsave('movie.gif',images, duration=1.5)
                     #try:
                     #    slack = Slacker(self.token)
@@ -412,6 +404,44 @@ class DahuaDevice():
             pass
 
         return ""
+
+
+    def ProcessSearchImage(self,item,result):
+        #image = result.raw.read()
+        #with open("1.jpg", 'wb') as f:
+        #    for chunk in result:
+        #        f.write(chunk)
+        image = result.content
+        imagesize = len(image)
+        #image = result.content
+        
+        expectedsize =  int(item['Length'])
+        expectedsize = int(float(expectedsize) * 0.65)
+        _LOGGER.debug("SearchImages: Image " + item['FilePath'] + " Expected Size: (85%)" + str(expectedsize) 
+            + "  Downloaded Size: " + str(imagesize))
+        if imagesize >= expectedsize:
+            #imagepayload = ""
+            if image is not None and len(image) > 0:
+                _LOGGER.debug("SearchImages:  This one meats size requirements: " + item['FilePath'])
+                #fp = open("image.jpg", "wb")
+                #fp.write(image) #r.text is the binary data for the PNG returned by that php script
+                #fp.close()
+                #construct image payload
+                #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
+                _LOGGER.info("SearchImages:   heres an image to post")
+                return image
+            else:
+                _LOGGER.debug("SearchImages: Image too small: " + item['FilePath'] + " @  " + str(imagesize))
+            #try:
+            #    im = Image.open(BytesIO(result.content))
+            #    im.resize((im.size[0] // 2, im.size[1] // 2), Image.ANTIALIAS) 
+            #    images.append(im)
+            #except Exception as imgEx:
+            #    print(str(imgEx))
+            #    pass
+        #fp = open("image" + str(imagecount) + ".jpg", "wb")
+        #fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
+        #fp.close()
 
     # Connected to camera
     def OnConnect(self):
@@ -468,7 +498,7 @@ class DahuaDevice():
                     _LOGGER.info("ReceiveData: calling search images") 
                     starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
                     endtime = datetime.datetime.now() 
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images VideoMotion',60))
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images VideoMotion',180))
                     process2.daemon = True                            # Daemonize thread
                     process2.start()
             elif Alarm["Code"] == "AlarmLocal":
@@ -515,7 +545,7 @@ class DahuaDevice():
                     _LOGGER.info("ReceiveData: calling search images") 
                     starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
                     endtime = datetime.datetime.now() 
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images IVS',60))
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images IVS',180))
                     process2.daemon = True                            # Daemonize thread
                     process2.start()       
 
