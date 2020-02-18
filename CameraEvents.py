@@ -294,7 +294,13 @@ class DahuaDevice():
         else:
             auth = auth=requests.auth.HTTPBasicAuth(self.user, self.password)
 
-        _LOGGER.info("Finder Url: " + finderurl)
+        channelName = "Unknown"
+        try:
+            channelName = self.channels[channel-1]
+        except:
+            pass
+
+        _LOGGER.info("SearchImages Finder Url: " + finderurl)
         try:
             #first request needs authentication
             if self.auth == "digest":
@@ -305,15 +311,15 @@ class DahuaDevice():
             #result = b'result=3021795080\r\n' 
             # Get the object id of the finder request, needed for subsequent searches
             objectId = self.ConvertLinesToDict(result.decode())["result"]
-
+            _LOGGER.info("SearchImages:  Opened a search object: " + objectId)
             # perform a search.  Startime and endtime in the following format: 2011-1-1%2012:00:00
             finderurl = MEDIA_START.format(host=self.host,protocol=self.protocol,port=self.port,
                 object=objectId,channel=channel,
                 starttime=starttime.strftime("%Y-%m-%d%%20%H:%M:%S"),
                 endtime=endtime.strftime("%Y-%m-%d%%20%H:%M:%S")
-            )
-                #,events="*")
+                ,events="*")
             #finderurl = finderurl + requests.utils.quote("&condition.Types[0]=jpg")
+            _LOGGER.info("SearchImages:  FinderURL: " + finderurl)
             result = s.get(finderurl, stream=True,auth=auth,cookies=cookies)
             if result.status_code == 200:
                 finderurl = MEDIA_NEXT.format(host=self.host,protocol=self.protocol,port=self.port,object=objectId)
@@ -330,28 +336,35 @@ class DahuaDevice():
                     #images = []
                     imagesize = 0
                     expectedsize = 0
+                    _LOGGER.info("SearchImages: Found " + str(len(mediaItem)) + " images to process")
                     for item in mediaItem:
-                        _LOGGER.info("SearchImages: Found " + str(len(mediaItem)) + " images to process")
-                        loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,
-                            file=item['FilePath'])
+                        _LOGGER.debug("SearchImages: Creating url for image: " + item['FilePath'])
+                        loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=item['FilePath'])
+                        _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
+
                         result = s.get(loadurl,auth=auth,cookies=cookies)
                         imagesize = len(result.content)
                         image = result.content
                         expectedsize =  int(item['Length'])
                         expectedsize = int(float(expectedsize) * 0.85)
+                        _LOGGER.debug("SearchImages: Image " + item['FilePath'] + " Expected Size: (85%)" + str(expectedsize) 
+                            + "  Downloaded Size: " + str(imagesize))
                         if imagesize >= expectedsize:
                             imagepayload = ""
                             if image is not None and len(image) > 0:
+                                _LOGGER.debug("SearchImages:  This one meats size requirements: " + item['FilePath'])
                                 #fp = open("image.jpg", "wb")
                                 #fp.write(image) #r.text is the binary data for the PNG returned by that php script
                                 #fp.close()
                                 #construct image payload
                                 #{{ \"message\": \"Motion Detected: {0}\", \"imagebase64\": \"{1}\" }}"
+                                _LOGGER.info("SearchImages:   heres an image to post")
                                 imagepayload = (base64.encodebytes(image)).decode("utf-8")
                                 msgpayload = json.dumps({"message":message,"imagebase64":imagepayload})
                                 #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
                 
                                 if not nopublish:
+                                    _LOGGER.debug("SearchImages:  Publishing " + item['FilePath'])
                                     self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
                                     break
                             #try:
@@ -387,7 +400,8 @@ class DahuaDevice():
                     #'items[0].Type': 'jpg',
                     #'items[0].VideoStream': 'Main',
                     #result = s.get(finderurl,auth=auth,cookies=cookies)
-
+            else: #if result.status_code == 200:
+                _LOGGER.info("SearchImages: Nothing Found for " + objectId)
         except Exception as ex:
             # if there's been an error and we've got an object id, close the finder.
             print("Error in search images: " + str(ex))
@@ -451,6 +465,12 @@ class DahuaDevice():
                         process.start()    
                 else: 
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+                    _LOGGER.info("ReceiveData: calling search images") 
+                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                    endtime = datetime.datetime.now() 
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images VideoMotion',60))
+                    process2.daemon = True                            # Daemonize thread
+                    process2.start()
             elif Alarm["Code"] == "AlarmLocal":
                 _LOGGER.info("Alarm Local received: "+  Alarm["name"] + " Index: " + str(index) + " Code: " + Alarm["Code"])
                 # Start action reveived, turn alarm on.
@@ -492,9 +512,10 @@ class DahuaDevice():
                         process.daemon = True                            # Daemonize thread
                         process.start() 
                 else:    
+                    _LOGGER.info("ReceiveData: calling search images") 
                     starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                    endtime = datetime.datetime.now()
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images',60))
+                    endtime = datetime.datetime.now() 
+                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images IVS',60))
                     process2.daemon = True                            # Daemonize thread
                     process2.start()       
 
