@@ -493,14 +493,14 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
                         process.daemon = True                            # Daemonize thread
                         process.start()    
-                else: 
-                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
-                    _LOGGER.info("ReceiveData: calling search images") 
-                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                    endtime = datetime.datetime.now() 
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images VideoMotion',180))
-                    process2.daemon = True                            # Daemonize thread
-                    process2.start()
+                #else: 
+                #    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
+                #    _LOGGER.info("ReceiveData: calling search images") 
+                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                #    endtime = datetime.datetime.now() 
+                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images VideoMotion',180))
+                #    process2.daemon = True                            # Daemonize thread
+                #    process2.start()
             elif Alarm["Code"] == "AlarmLocal":
                 _LOGGER.info("Alarm Local received: "+  Alarm["name"] + " Index: " + str(index) + " Code: " + Alarm["Code"])
                 # Start action reveived, turn alarm on.
@@ -541,13 +541,13 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
                         process.daemon = True                            # Daemonize thread
                         process.start() 
-                else:    
-                    _LOGGER.info("ReceiveData: calling search images") 
-                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                    endtime = datetime.datetime.now() 
-                    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images IVS',180))
-                    process2.daemon = True                            # Daemonize thread
-                    process2.start()       
+                #else:    
+                #    _LOGGER.info("ReceiveData: calling search images") 
+                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
+                #    endtime = datetime.datetime.now() 
+                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images IVS',180))
+                #    process2.daemon = True                            # Daemonize thread
+                #    process2.start()       
 
             else:
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
