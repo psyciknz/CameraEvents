@@ -487,13 +487,16 @@ class DahuaDevice():
                         self.client.reconnect()
                 if Alarm["action"] == "Start":
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
                     if self.alerts:
                         #possible new process:
                         #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
                         process.daemon = True                            # Daemonize thread
                         process.start()    
-                #else: 
+                else: #if Alarm["action"] == "Start":
+                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 #    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
                 #    _LOGGER.info("ReceiveData: calling search images") 
                 #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
@@ -508,16 +511,13 @@ class DahuaDevice():
                     if not self.client.connected_flag:
                         self.client.reconnect()
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"ON")
-                    # if self.alerts:
-                    #     #possible new process:
-                    #     #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                    #     process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"])))
-                    #     process.daemon = True                            # Daemonize thread
-                    #     process.start()    
-                else: 
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
+                else: #if Alarm["action"] == "Start":
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"OFF")
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
                     regionText = Alarm["Code"]
                     try:
 
@@ -541,7 +541,8 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText)))
                         process.daemon = True                            # Daemonize thread
                         process.start() 
-                #else:    
+                else:   #if Alarm["action"] == "Start":
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 #    _LOGGER.info("ReceiveData: calling search images") 
                 #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
                 #    endtime = datetime.datetime.now() 
@@ -549,8 +550,12 @@ class DahuaDevice():
                 #    process2.daemon = True                            # Daemonize thread
                 #    process2.start()       
 
-            else:
+            else: #if Alarm["Code"] == "VideoMotion": - unknown event
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
+                if Alarm["action"] == "Start": 
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
+                else:
+                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
                 
             #2019-01-27 08:28:19,658 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection

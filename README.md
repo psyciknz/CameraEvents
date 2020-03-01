@@ -105,6 +105,14 @@ CameraEvents/IVS/Garage CrossLineDetection With Human in RightToLeft direction f
 ```
 I'll add specifics later for IVS, as I've seen the "human" be vehicle and smoke also...I'll problably add a fitler for these.
 
+There is a generic Event suitable for being a motion sensor in Home Assistant or OpenHAB.
+```
+CameraEvents/<channel>/event
+```
+
+The payload for this event will be ON or OFF.
+
+
 # Subscribed Events
 
 Camera Events subscribes to two messages currently.
