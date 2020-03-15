@@ -777,7 +777,7 @@ class DahuaEventThread(threading.Thread):
     
                     
     def mqtt_on_alert_message(self,client, userdata, msg):
-        if msg.payload == 'ON':
+        if msg.payload.decode("utf-8").lower() == 'on' or msg.payload.decode("utf-8").lower() == 'true':
             newState = True
         else:
             newState = False
