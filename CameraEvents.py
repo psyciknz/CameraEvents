@@ -728,7 +728,7 @@ class DahuaEventThread(threading.Thread):
             _LOGGER.info("Connected to MQTT OK Returned code={0}".format(rc))
             self.client.connected_flag=True
             self.client.publish(self.basetopic +"/$online",True,qos=0,retain=True)
-            self.client.publish(self.basetopic +"/$version",version)
+            self.client.publish(self.basetopic +"/$version",version,qos=0,retain=True)
             if self.alerts:
                 state = "ON"
             else:
@@ -736,7 +736,7 @@ class DahuaEventThread(threading.Thread):
 
             for device in self.Devices:
                 device.alerts = state
-                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",state)
+                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",state,qos=0,retain=True)
             self.client.subscribe(self.basetopic +"/+/picture")
             self.client.subscribe(self.basetopic +"/+/alerts")
 
@@ -789,7 +789,7 @@ class DahuaEventThread(threading.Thread):
             if device.Name == deviceName:
                 device.alerts = newState
                 _LOGGER.info("Turning Alerts {0}".format( newState))
-                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",msg.payload)
+                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",msg.payload,qos=0,retain=True)
 
     def mqtt_on_cross_message(self,client, userdata, msg):
         if msg.payload == 'ON':
@@ -804,7 +804,7 @@ class DahuaEventThread(threading.Thread):
             if device.Name == deviceName:
                 device.alerts = newState
                 _LOGGER.info("Turning Alerts {0}".format( newState))
-                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",msg.payload)
+                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",msg.payload,,qos=0,retain=True)
 
 if __name__ == '__main__':
 
