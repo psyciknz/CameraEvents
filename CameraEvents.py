@@ -804,7 +804,7 @@ class DahuaEventThread(threading.Thread):
             if device.Name == deviceName:
                 device.alerts = newState
                 _LOGGER.info("Turning Alerts {0}".format( newState))
-                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",msg.payload,,qos=0,retain=True)
+                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",msg.payload,qos=0,retain=True)
 
 if __name__ == '__main__':
 
