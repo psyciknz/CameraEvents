@@ -34,7 +34,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.2.0"
+version = "0.2.1"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -511,10 +511,8 @@ class DahuaDevice():
                     if not self.client.connected_flag:
                         self.client.reconnect()
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"ON")
-                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
                 else: #if Alarm["action"] == "Start":
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"OFF")
-                    self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
