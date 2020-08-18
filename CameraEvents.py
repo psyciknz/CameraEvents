@@ -81,7 +81,7 @@ class DahuaDevice():
     
     
 
-    def __init__(self,  name, device_cfg, client, basetopic):
+    def __init__(self,  name, device_cfg, client, basetopic, homebridge):
         if device_cfg["channels"]:
             self.channels = device_cfg["channels"]
         else:
@@ -102,6 +102,7 @@ class DahuaDevice():
         self.token = device_cfg.get("token")
         self.client = client
         self.basetopic = basetopic
+        self.homebridge = homebridge
         self.snapshotoffset = device_cfg.get("snapshotoffset")
 
         #generate the event url
@@ -404,7 +405,194 @@ class DahuaDevice():
             pass
 
         return ""
+    #def SearchImages(self,channel,starttime, endtime, events,nopublish=True, message='',delay=0):
 
+    def SearchClips(self,channel,starttime, endtime, events,nopublish=True, message='',delay=0):
+        """Searches for clips for the channel
+        channel is a numerical channel index (starts at 1)
+        starttime is the start search time
+        endtime is the end search time (or now)
+        events is a list of event types"""
+        #Create Finder
+        #http://<ip>/cgi-bin/mediaFileFind.cgi?action=factory.create 
+        MEDIA_FINDER="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=factory.create"
+        MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}&condition.Channel={channel}" + \
+            "&condition.StartTime={starttime}&condition.EndTime={endtime}&condition.Types[0]=dav&condition.Flag[0]=Event" \
+            "&condition.Events[0]={events}"
+        MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}" + \
+            "&condition.Channel={channel}" + \
+            "&condition.StartTime={starttime}&condition.EndTime={endtime}" + \
+            "&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=dav"
+            #&condition.Types=%5b0%5d=jpg" 
+            #&condition.Types[0]=jpg
+            #&condition.Flags[0]=Event&condition.Types[0]=jpg
+            #&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=jpg
+            #%5B{events}%5D
+        #MEDIA_START="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findFile&object={object}" + \
+        #    "&condition.Channel={channel}" + \
+        #    "&condition.StartTime=2019-12-05%2006:20:48&condition.EndTime=2019-12-05%2009:28:48&condition.Flags%5b0%5d=Event&condition.Types%5b0%5d=jpg"
+
+        #Start Find
+        #http://<ip>/cgi-bin/mediaFileFind.cgi?action=findFile&object=<objectId>&condition.Channel=<channel>&condition.StartTime=
+        #  <start>&condition.EndTime=<end>&condition.Dirs[0]=<dir>&condition.Types[0]=<type>&condition.Flag[0]=<flag>&condition.E vents[0]=<event>
+        #Start to find file wth the above condition. 
+        # If start successfully, return true, else return false. 
+        #  object : The object Id is got from interface in 10.1.1 
+        #  Create condition.Channel: in which channel you want to find the file . 
+        # condition.StartTime/condition.EndTime: the start/end time when recording. 
+        # condition.Dirs: in which directories you want to find the file. It is an array. 
+        #   The index starts from 0. The range of dir is {“/mnt/dvr/sda0”, “/mnt/dvr/sda1”}. 
+        #   This condition can be omitted. If omitted, find files in all the directories. 
+        # condition.Types: which types of the file you want to find. It is an array. 
+        #   The index starts from 0. The range of type is {“dav”,“jpg”, “mp4”}. If omitted, 
+        #   find files with all the types. 
+        # condition.Flags: which flags of the file you want to find. It is an array. 
+        #   The index starts from 0. The range of flag is {“Timing”, “Manual”, “Marker”, “Event”, “Mosaic”, “Cutout”}. 
+        #   If omitted, find files with all the flags. 
+        # condition.Event: by which event the record file is triggered. It is an array. 
+        #   The index starts from 0. The range of event is {“AlarmLocal”, “VideoMotion”, “VideoLoss”, “VideoBlind”, “Traffic*”}. 
+        #   This condition can be omitted. If omitted, find files of all the events. 
+        #   Example: Find file in channel 1, in directory “/mnt/dvr/sda0",event type is "AlarmLocal" or 
+        #   "VideoMotion", file type is “dav”, and time between 2011-1-1 12:00:00 and 2011-1-10 12:00:00 , 
+        #   URL is: http://<ip>/cgi-bin/mediaFileFind.cgi?action=findFile&object=08137&condition.Channel=1&conditon.Dir[0]=”/mnt/dvr/sda0”& conditon.Event[0]=AlarmLocal&conditon.Event[1]=VideoMotion&condition.StartTime=2011-1-1%2012:00:00&condition.EndTi me=2011-1-10%2012:00:00
+
+        #Find next File
+        # http://<ip>/cgi-bin/mediaFileFind.cgi?action=findNextFile&object=<objectId>&count=<fileCount> Comment 
+        MEDIA_NEXT="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={object}&count=50"
+        
+        MEDIA_LOADFILE="{protocol}://{host}:{port}/cgi-bin/RPC_Loadfile{file}"
+
+        #Close Finder
+        #http://<ip>/cgi-bin/mediaFileFind.cgi?action=close&object=<objectId> 
+        MEDIA_CLOSE="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=close&object={object}"
+
+        if delay > 0:
+            time.sleep(delay)
+
+        finderurl  = MEDIA_FINDER.format(
+                host=self.host,
+                protocol=self.protocol,
+                port  = self.port
+            )
+        objectId = ""
+        cookies = {}
+        s = requests.Session()
+        if self.auth == "digest":
+            auth = requests.auth.HTTPDigestAuth(self.user, self.password)
+        else:
+            auth = auth=requests.auth.HTTPBasicAuth(self.user, self.password)
+
+        channelName = "Unknown"
+        try:
+            channelName = self.channels[channel-1]
+        except:
+            pass
+
+        _LOGGER.info("SearchImages Finder Url: " + finderurl)
+        try:
+            #first request needs authentication
+            if self.auth == "digest":
+                result = s.get(finderurl, stream=True,auth=auth,cookies=cookies).content
+            else:
+                result = s.get(finderurl, stream=True,auth=auth,cookies=cookies).content
+
+            #result = b'result=3021795080\r\n' 
+            # Get the object id of the finder request, needed for subsequent searches
+            objectId = self.ConvertLinesToDict(result.decode())["result"]
+            _LOGGER.info("SearchImages:  Opened a search object: " + objectId)
+            # perform a search.  Startime and endtime in the following format: 2011-1-1%2012:00:00
+            finderurl = MEDIA_START.format(host=self.host,protocol=self.protocol,port=self.port,
+                object=objectId,channel=channel,
+                starttime=starttime.strftime("%Y-%m-%d%%20%H:%M:%S"),
+                endtime=endtime.strftime("%Y-%m-%d%%20%H:%M:%S")
+                ,events="*")
+            #finderurl = finderurl + requests.utils.quote("&condition.Types[0]=dav")
+            _LOGGER.info("SearchImages:  FinderURL: " + finderurl)
+            result = s.get(finderurl, stream=True,auth=auth,cookies=cookies)
+            if result.status_code == 200:
+                finderurl = MEDIA_NEXT.format(host=self.host,protocol=self.protocol,port=self.port,object=objectId)
+                result = s.get(finderurl,auth=auth,cookies=cookies)
+                mediaItem = {}
+                if result.status_code == 200:
+                    #start downloading the images.
+                    mediaItem = self.ConvertLinesToDict(result.content.decode())
+                    finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
+                        object=objectId)
+                    
+                    # Close the media find object
+                    result = s.get(finderurl,auth=auth,cookies=cookies).content
+                    #images = []
+                    #imagesize = 0
+                    #expectedsize = 0
+                    image = None
+                    _LOGGER.info("SearchImages: Found " + str(len(mediaItem)) + " images to process")
+                    
+                    filepath = ""
+
+                    if type(mediaItem) is list:
+                        for item in mediaItem:
+                            filepath = item['FilePath']
+                            _LOGGER.debug("SearchImages: Creating url for image: " + filepath)
+                            loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=filepath)
+                            _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
+                            result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                            #result = s.get(loadurl,auth=auth,cookies=cookies)
+                            #image = self.ProcessSearchImage(item,result)
+                            #if image is not None:
+                            #    break
+                    else:
+                        filepath = mediaItem['FilePath']
+                        _LOGGER.debug("SearchImages: Creating url for image: " + filepath)
+                        loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=filepath)
+                        _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
+                        result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                        #result = s.get(loadurl,auth=auth,cookies=cookies)
+                        #image = self.ProcessSearchImage(mediaItem,result)
+                        
+                    if image is not None:
+                        imagepayload = (base64.encodebytes(image)).decode("utf-8")
+                        msgpayload = json.dumps({"message":message,"imagebase64":imagepayload})
+                        #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
+
+                        if not nopublish:
+                            _LOGGER.debug("SearchImages:  Publishing " + filepath)
+                            self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
+
+                    #imageio.mimsave('movie.gif',images, duration=1.5)
+                    #try:
+                    #    slack = Slacker(self.token)
+                    #    with open('movie.gif', 'rb') as f:
+                    #        slack.files.upload(file_=BytesIO(f.read()),
+                    #           title="Image'",
+                    ##            channels=slack.channels.get_channel_id('camera'),
+                    #            filetype='gif')
+                    #except Exception as slackEx:
+                    #    print(str(slackEx))
+                    #'found': '3', 
+                    #'items[0].Channel': '0', 
+                    #'items[0].Cluster': '171757', 
+                    #'items[0].Disk': '9',
+                    #'items[0].EndTime': '2019-12-06 08:33:29', 
+                    #'items[0].FilePath': '/mnt/dvr/2019-12-06...0][0].jpg', 
+                    #'items[0].Length': '674816', 
+                    #'items[0].Partition': '1', 
+                    #'items[0].StartTime': '2019-12-06 08:33:29', 
+                    #'items[0].Type': 'jpg',
+                    #'items[0].VideoStream': 'Main',
+                    #result = s.get(finderurl,auth=auth,cookies=cookies)
+            else: #if result.status_code == 200:
+                _LOGGER.info("SearchImages: Nothing Found for " + objectId)
+        except Exception as ex:
+            # if there's been an error and we've got an object id, close the finder.
+            print("Error in search images: " + str(ex))
+            if len(objectId) > 0:
+                finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
+                object=objectId)
+                result = s.get(finderurl,auth=auth,cookies=cookies).content
+            pass
+
+        return ""
+    #def SearchClips(self,channel,starttime, endtime, events,nopublish=True, message='',delay=0):
 
     def ProcessSearchImage(self,item,result):
         #image = result.raw.read()
@@ -422,7 +610,7 @@ class DahuaDevice():
         if imagesize >= expectedsize:
             #imagepayload = ""
             if image is not None and len(image) > 0:
-                _LOGGER.debug("SearchImages:  This one meats size requirements: " + item['FilePath'])
+                _LOGGER.debug("SearchImages:  This one meets size requirements: " + item['FilePath'])
                 #fp = open("image.jpg", "wb")
                 #fp.write(image) #r.text is the binary data for the PNG returned by that php script
                 #fp.close()
@@ -480,12 +668,15 @@ class DahuaDevice():
             else:
                 Alarm["channel"] = self.Name + ":" + str(index)
 
+            eventStart = False
+            camera = Alarm["channel"]
             #mqttc.connect(self.mqtt["IP"], int(self.mqtt["port"]), 60)
             if Alarm["Code"] == "VideoMotion":
                 _LOGGER.info("Video Motion received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 if not self.client.connected_flag:
                         self.client.reconnect()
                 if Alarm["action"] == "Start":
+                    eventStart = True
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
                     if self.alerts:
@@ -495,6 +686,7 @@ class DahuaDevice():
                         process.daemon = True                            # Daemonize thread
                         process.start()    
                 else: #if Alarm["action"] == "Start":
+                    eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 #    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
@@ -508,13 +700,16 @@ class DahuaDevice():
                 _LOGGER.info("Alarm Local received: "+  Alarm["name"] + " Index: " + str(index) + " Code: " + Alarm["Code"])
                 # Start action reveived, turn alarm on.
                 if Alarm["action"] == "Start":
+                    eventStart = True
                     if not self.client.connected_flag:
                         self.client.reconnect()
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"ON")
                 else: #if Alarm["action"] == "Start":
+                    eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" +  str(index) ,"OFF")
             elif Alarm["Code"] ==  "CrossRegionDetection" or Alarm["Code"] ==  "CrossLineDetection":
                 if Alarm["action"] == "Start":
+                    eventStart = True
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
                     regionText = Alarm["Code"]
                     try:
@@ -540,6 +735,7 @@ class DahuaDevice():
                         process.daemon = True                            # Daemonize thread
                         process.start() 
                 else:   #if Alarm["action"] == "Start":
+                    eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 #    _LOGGER.info("ReceiveData: calling search images") 
                 #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
@@ -551,11 +747,18 @@ class DahuaDevice():
             else: #if Alarm["Code"] == "VideoMotion": - unknown event
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
                 if Alarm["action"] == "Start": 
+                    eventStart = True
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"ON")
                 else:
+                    eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
                 
+            if self.homebridge:
+                if eventStart:
+                    self.client.publish(self.basetopic + "/motion",camera)
+                else:
+                    self.client.publish(self.basetopic + "/motion/reset",camera)
             #2019-01-27 08:28:19,658 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,674 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,703 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossLineDetection
@@ -621,6 +824,7 @@ class DahuaEventThread(threading.Thread):
         """Construct a thread listening for events."""
 
         self.basetopic = mqtt["basetopic"]
+        self.homebridge = mqtt["homebridge"]
 
         self.client = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
         if not mqtt["user"] is None and not mqtt["user"] == '':
@@ -636,9 +840,10 @@ class DahuaEventThread(threading.Thread):
 
         for device_cfg in cameras:
 
-            device = DahuaDevice(device_cfg.get("name"), device_cfg, self.client,self.basetopic)
+            device = DahuaDevice(device_cfg.get("name"), device_cfg, self.client,self.basetopic, self.homebridge)
             self.Devices.append(device)
 
+            #could look at this method: https://github.com/tchellomello/python-amcrest/blob/master/src/amcrest/event.py
             CurlObj = pycurl.Curl()
             device.CurlObj = CurlObj
 
@@ -863,6 +1068,7 @@ if __name__ == '__main__':
         mqtt["basetopic"] = cp.get("MQTT Broker","BaseTopic")
         mqtt["user"] = cp.get("MQTT Broker","user",fallback=None)
         mqtt["password"] = cp.get("MQTT Broker","password",fallback=None)
+        mqtt["homebridge"] = cp.get("MQTT Broker","HomebridgeEvents")
         dahua_event = DahuaEventThread(mqtt,cameras)
 
         dahua_event.start()

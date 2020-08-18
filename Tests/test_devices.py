@@ -33,7 +33,7 @@ def create_device():
 
     basetopic = "CameraEvents"
     
-    device = CameraEvents.DahuaDevice("Camera", device_cfg, client,basetopic)
+    device = CameraEvents.DahuaDevice("Camera", device_cfg, client,basetopic,False)
     return device
 
 def read_config():
@@ -81,3 +81,14 @@ def test_dahua_search_images():
     #if len(image) > 600:
     #    sized = True
     #assert sized is True
+
+
+def test_dahua_search_clips():
+    device = create_device()
+    device.host = 'cam-nvr.andc.nz'
+    device.user = 'IOS'
+    device.password = 'Dragon25'
+    starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
+    endtime = datetime.datetime.now()
+    result = device.SearchClips(1, starttime,endtime,"",nopublish=True,message='')
+    assert result is not None
