@@ -412,7 +412,8 @@ class DahuaDevice():
         channel is a numerical channel index (starts at 1)
         starttime is the start search time
         endtime is the end search time (or now)
-        events is a list of event types"""
+        events is a list of event types
+        Posts the url of the found clip"""
         #Create Finder
         #http://<ip>/cgi-bin/mediaFileFind.cgi?action=factory.create 
         MEDIA_FINDER="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=factory.create"
@@ -488,7 +489,7 @@ class DahuaDevice():
         except:
             pass
 
-        _LOGGER.info("SearchImages Finder Url: " + finderurl)
+        _LOGGER.info("SearchClips Finder Url: " + finderurl)
         try:
             #first request needs authentication
             if self.auth == "digest":
@@ -499,7 +500,7 @@ class DahuaDevice():
             #result = b'result=3021795080\r\n' 
             # Get the object id of the finder request, needed for subsequent searches
             objectId = self.ConvertLinesToDict(result.decode())["result"]
-            _LOGGER.info("SearchImages:  Opened a search object: " + objectId)
+            _LOGGER.info("SearchClips:  Opened a search object: " + objectId)
             # perform a search.  Startime and endtime in the following format: 2011-1-1%2012:00:00
             finderurl = MEDIA_START.format(host=self.host,protocol=self.protocol,port=self.port,
                 object=objectId,channel=channel,
@@ -507,7 +508,7 @@ class DahuaDevice():
                 endtime=endtime.strftime("%Y-%m-%d%%20%H:%M:%S")
                 ,events="*")
             #finderurl = finderurl + requests.utils.quote("&condition.Types[0]=dav")
-            _LOGGER.info("SearchImages:  FinderURL: " + finderurl)
+            _LOGGER.info("SearchClips:  FinderURL: " + finderurl)
             result = s.get(finderurl, stream=True,auth=auth,cookies=cookies)
             if result.status_code == 200:
                 finderurl = MEDIA_NEXT.format(host=self.host,protocol=self.protocol,port=self.port,object=objectId)
@@ -525,66 +526,41 @@ class DahuaDevice():
                     #imagesize = 0
                     #expectedsize = 0
                     image = None
-                    _LOGGER.info("SearchImages: Found " + str(len(mediaItem)) + " images to process")
+                    _LOGGER.info("SearchClips: Found " + str(len(mediaItem)) + " images to process")
                     
                     filepath = ""
 
                     if type(mediaItem) is list:
                         for item in mediaItem:
                             filepath = item['FilePath']
-                            _LOGGER.debug("SearchImages: Creating url for image: " + filepath)
+                            _LOGGER.debug("SearchClips: Creating url for image: " + filepath)
                             loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=filepath)
-                            _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
-                            result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                            _LOGGER.debug("SearchClips: LoadUrl: " + loadurl)
+                            #result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                            if not nopublish:
+                                _LOGGER.debug("SearchClips:  Publishing " + filepath)
+                                self.client.publish(self.basetopic +"/{0}/Clip".format(channelName),loadurl)
                             #result = s.get(loadurl,auth=auth,cookies=cookies)
                             #image = self.ProcessSearchImage(item,result)
                             #if image is not None:
                             #    break
                     else:
                         filepath = mediaItem['FilePath']
-                        _LOGGER.debug("SearchImages: Creating url for image: " + filepath)
+                        _LOGGER.debug("SearchClips: Creating url for image: " + filepath)
                         loadurl = MEDIA_LOADFILE.format(host=self.host,protocol=self.protocol,port=self.port,file=filepath)
                         _LOGGER.debug("SearchImages: LoadUrl: " + loadurl)
-                        result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                        #result = s.get(loadurl,auth=auth,cookies=cookies,stream=True)
+                        if not nopublish:
+                            _LOGGER.debug("SearchClips:  Publishing " + filepath)
+                            self.client.publish(self.basetopic +"/{0}/Clip".format(channelName),loadurl)
                         #result = s.get(loadurl,auth=auth,cookies=cookies)
                         #image = self.ProcessSearchImage(mediaItem,result)
                         
-                    if image is not None:
-                        imagepayload = (base64.encodebytes(image)).decode("utf-8")
-                        msgpayload = json.dumps({"message":message,"imagebase64":imagepayload})
-                        #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
-
-                        if not nopublish:
-                            _LOGGER.debug("SearchImages:  Publishing " + filepath)
-                            self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
-
-                    #imageio.mimsave('movie.gif',images, duration=1.5)
-                    #try:
-                    #    slack = Slacker(self.token)
-                    #    with open('movie.gif', 'rb') as f:
-                    #        slack.files.upload(file_=BytesIO(f.read()),
-                    #           title="Image'",
-                    ##            channels=slack.channels.get_channel_id('camera'),
-                    #            filetype='gif')
-                    #except Exception as slackEx:
-                    #    print(str(slackEx))
-                    #'found': '3', 
-                    #'items[0].Channel': '0', 
-                    #'items[0].Cluster': '171757', 
-                    #'items[0].Disk': '9',
-                    #'items[0].EndTime': '2019-12-06 08:33:29', 
-                    #'items[0].FilePath': '/mnt/dvr/2019-12-06...0][0].jpg', 
-                    #'items[0].Length': '674816', 
-                    #'items[0].Partition': '1', 
-                    #'items[0].StartTime': '2019-12-06 08:33:29', 
-                    #'items[0].Type': 'jpg',
-                    #'items[0].VideoStream': 'Main',
-                    #result = s.get(finderurl,auth=auth,cookies=cookies)
             else: #if result.status_code == 200:
-                _LOGGER.info("SearchImages: Nothing Found for " + objectId)
+                _LOGGER.info("SearchClips: Nothing Found for " + objectId)
         except Exception as ex:
             # if there's been an error and we've got an object id, close the finder.
-            print("Error in search images: " + str(ex))
+            print("Error in search clips: " + str(ex))
             if len(objectId) > 0:
                 finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
                 object=objectId)
@@ -689,13 +665,12 @@ class DahuaDevice():
                     eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
-                #    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
-                #    _LOGGER.info("ReceiveData: calling search images") 
-                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                #    endtime = datetime.datetime.now() 
-                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images VideoMotion',180))
-                #    process2.daemon = True                            # Daemonize thread
-                #    process2.start()
+                    _LOGGER.info("ReceiveData: calling search Clips") 
+                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=1)
+                    endtime = datetime.datetime.now() 
+                    process2 = threading.Thread(target=self.SearchClips,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Clips VideoMotion',30))
+                    process2.daemon = True                            # Daemonize thread
+                    process2.start()
             elif Alarm["Code"] == "AlarmLocal":
                 _LOGGER.info("Alarm Local received: "+  Alarm["name"] + " Index: " + str(index) + " Code: " + Alarm["Code"])
                 # Start action reveived, turn alarm on.
@@ -737,12 +712,12 @@ class DahuaDevice():
                 else:   #if Alarm["action"] == "Start":
                     eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
-                #    _LOGGER.info("ReceiveData: calling search images") 
-                #    starttime = datetime.datetime.now() - datetime.timedelta(minutes=5)
-                #    endtime = datetime.datetime.now() 
-                #    process2 = threading.Thread(target=self.SearchImages,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Images IVS',180))
-                #    process2.daemon = True                            # Daemonize thread
-                #    process2.start()       
+                    _LOGGER.info("ReceiveData: calling search Clips") 
+                    starttime = datetime.datetime.now() - datetime.timedelta(minutes=1)
+                    endtime = datetime.datetime.now() 
+                    process2 = threading.Thread(target=self.SearchClips,args=(index+self.snapshotoffset,starttime,endtime,'',False,'Search Clips IVS',30))
+                    process2.daemon = True                            # Daemonize thread
+                    process2.start()
 
             else: #if Alarm["Code"] == "VideoMotion": - unknown event
                 _LOGGER.info("dahua_event_received: "+  Alarm["name"] + " Index: " + Alarm["channel"] + " Code: " + Alarm["Code"])
@@ -754,11 +729,11 @@ class DahuaDevice():
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
                 
-            if self.homebridge:
-                if eventStart:
-                    self.client.publish(self.basetopic + "/motion",camera)
-                else:
-                    self.client.publish(self.basetopic + "/motion/reset",camera)
+            #if self.homebridge:
+            #    if eventStart:
+            #        self.client.publish(self.basetopic + "/motion",camera)
+            #    else:
+            #        self.client.publish(self.basetopic + "/motion/reset",camera)
             #2019-01-27 08:28:19,658 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,674 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossRegionDetection
             #2019-01-27 08:28:19,703 - __main__ - INFO - dahua_event_received: NVR Index: NVR:0 Code: CrossLineDetection
@@ -1068,7 +1043,8 @@ if __name__ == '__main__':
         mqtt["basetopic"] = cp.get("MQTT Broker","BaseTopic")
         mqtt["user"] = cp.get("MQTT Broker","user",fallback=None)
         mqtt["password"] = cp.get("MQTT Broker","password",fallback=None)
-        mqtt["homebridge"] = cp.get("MQTT Broker","HomebridgeEvents")
+        mqtt["homebridge"] = cp.get("MQTT Broker","HomebridgeEvents",fallback=False)
+        mqtt["mqttimages"] = cp.get("MQTT Broker","PostImagesToMQTT",fallback=True)
         dahua_event = DahuaEventThread(mqtt,cameras)
 
         dahua_event.start()
