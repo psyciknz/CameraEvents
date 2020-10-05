@@ -34,7 +34,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-version = "0.2.1"
+version = "0.2.2"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -906,14 +906,14 @@ class DahuaEventThread(threading.Thread):
             self.client.connected_flag=True
             self.client.publish(self.basetopic +"/$online",True,qos=0,retain=True)
             self.client.publish(self.basetopic +"/$version",version,qos=0,retain=True)
-            if self.alerts:
-                state = "ON"
-            else:
-                state = "OFF"
+            #if self.alerts:
+            #    state = "ON"
+            #else:
+            #    state = "OFF"
 
-            for device in self.Devices:
-                device.alerts = state
-                self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",state,qos=0,retain=True)
+            #for device in self.Devices:
+            #    device.alerts = state
+            #    self.client.publish(self.basetopic +"/" + device.Name + "/alerts/state",state,qos=0,retain=True)
             self.client.subscribe(self.basetopic +"/+/picture")
             self.client.subscribe(self.basetopic +"/+/alerts")
 
