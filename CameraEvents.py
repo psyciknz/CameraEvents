@@ -811,11 +811,10 @@ class DahuaEventThread(threading.Thread):
         
         self.client.will_set(self.basetopic +"/$online",False,qos=0,retain=True)
 
-        self.alerts = True
-
         for device_cfg in cameras:
 
             device = DahuaDevice(device_cfg.get("name"), device_cfg, self.client,self.basetopic, self.homebridge)
+
             self.Devices.append(device)
 
             #could look at this method: https://github.com/tchellomello/python-amcrest/blob/master/src/amcrest/event.py
@@ -1010,6 +1009,7 @@ if __name__ == '__main__':
             camera["pass"] = cp.get(camera_key,'pass')
             camera["auth"] = cp.get(camera_key,'auth')
             camera["events"] = cp.get(camera_key,'events')
+            camera["alerts"] = cp.get(camera_key,"alerts",fallback=True)
             channels = {}
             if cp.has_option(camera_key,'channels'):
                 try:
