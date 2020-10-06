@@ -3,4 +3,4 @@ config.ini
 *.pyc
 .pytest_cache/*
 build.config
-image.jpg
+*.jpg
