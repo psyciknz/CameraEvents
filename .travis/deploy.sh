@@ -7,7 +7,7 @@ if [ "$TRAVIS_PULL_REQUEST" == "true" ]; then
   exit 1
 fi
 
-DOCKER_VERSION_TAG=$(grep -Po '(?<=version = \")[^\"]+' ../CameraEvents.py)
+DOCKER_VERSION_TAG=$(grep -Po '(?<=version = \")[^\"]+' ./CameraEvents.py)
 
 if [ -z "$TRAVIS_TAG" ]; then
   DOCKER_IMAGE_TAG=$(if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo "$TRAVIS_BRANCH-latest"; fi)
