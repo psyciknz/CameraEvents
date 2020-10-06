@@ -34,7 +34,7 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
-#Version String must be in this format = version = "<version>"
+#Version String must be in this format (with o to replace 0) = versi0n = "<version>"
 #for travis to find it.
 version = "0.2.2"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
