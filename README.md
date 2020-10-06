@@ -36,9 +36,12 @@ Port: 1883                              ;MQTT Port
 Mqtt_Username = ''                      ;MQTT username, without qoutes
 Mqtt_Password = ''                      ;MQTT password, without qoutes
 BaseTopic = 'CameraEvents'
+PostImagesToMQTT=False
 ```
 
-User and password are not yet supported on the mqtt server.
+User and password are supported on the mqtt server.
+
+PostImagesToMQTT - the default is true, so a binary image will be posted to the payload as ImageBase64.  If PostImagesToMQTT is false a snapshot or path to an NVR image will be posted for the ImageURL variable of the json payload.
 
 List your cameras in the next section:
 ```
@@ -53,12 +56,13 @@ Each section then needs it's own configuration:
 host=192.168.1.108
 protocol=http
 name=NVR
-isNVR=True
+isNVR=True/False
 port=80
 user=USER
 pass=PASSWORD
-auth=digest
+auth=digest/basis
 events=VideoMotion,CrossLineDetection,AlarmLocal,VideoLoss,VideoBlind
+alerts=True/False
 			
 [Example2]
 host=192.168.1.109
@@ -133,9 +137,16 @@ CameraEvents/<devicename>/alerts
 ```
 This message takes a payload on ON or OFF and when the device name matches a camera in the config.ini, it will turn off alerts for that device (they will not post images until turned back on)
 
+Alerts can also be see in the config.ini for each camera/nvr with the `alerts=False` parameter.
 
 
 # Problems/Change History
+
+2020-10-06
+- Merged in the Alarm-local branch
+- Updated version to 0.2.2
+- Added a :latest and :0.2.2 version to dockerhub builds.
+- Added more explanation to some of the config options for PostImagesToMQTT
 
 2020-02-17
 - Added MQTT Authentication to code @vogelfreiheit
