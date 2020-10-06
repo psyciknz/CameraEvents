@@ -8,6 +8,7 @@ if [ "$TRAVIS_PULL_REQUEST" == "true" ]; then
 fi
 
 DOCKER_VERSION_TAG=$(grep -Po '(?<=version = \")[^\"]+' ./CameraEvents.py)
+echo "Extracted Version number $DOCKER_VERSION_TAG"
 
 if [ -z "$TRAVIS_TAG" ]; then
   DOCKER_IMAGE_TAG=$(if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo "$TRAVIS_BRANCH-latest"; fi)
@@ -18,6 +19,7 @@ fi
 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
 export DOCKER_IMAGE_TAG
+export DOCKER_VERSION_TAG
 export DOCKER_CLI_EXPERIMENTAL=enabled
 
 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
