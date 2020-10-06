@@ -7,6 +7,8 @@ if [ "$TRAVIS_PULL_REQUEST" == "true" ]; then
   exit 1
 fi
 
+DOCKER_VERSION_TAG=$(grep -Po '(?<=version = \")[^\"]+' ../CameraEvents.py)
+
 if [ -z "$TRAVIS_TAG" ]; then
   DOCKER_IMAGE_TAG=$(if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo "$TRAVIS_BRANCH-latest"; fi)
 else
@@ -20,4 +22,4 @@ export DOCKER_CLI_EXPERIMENTAL=enabled
 
 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 docker buildx create --use
-docker buildx build --progress plain --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8 -t "psyciknz/cameraevents:$DOCKER_IMAGE_TAG" --push .
+docker buildx build --progress plain --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8 -t "psyciknz/cameraevents:$DOCKER_IMAGE_TAG" -t "psyciknz/cameraevents:$DOCKER_VERSION_TAG"  --push .

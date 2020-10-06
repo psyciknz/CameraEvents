@@ -34,6 +34,8 @@ import time
 import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
+#Version String must be in this format = version = "<version>"
+#for travis to find it.
 version = "0.2.2"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
