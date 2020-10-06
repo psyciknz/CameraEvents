@@ -1,6 +1,38 @@
+
 language: python
+#addons:
+#  apt:
+#    packages:
+#    - python3-dev
+#    - libgnutls28-dev
 python:
   - "3.7"
+before_install:
+  - sudo apt-get update -q
+  - sudo apt-get -y install python3-dev 
+  - sudo apt-get -y install libgnutls28-dev
+    
 # command to run tests
 install: pip install -r requirements.txt
-script: pytest test_onreceive.py
+script: pytest ./Tests/test_onreceive.py
+# runs all but needs connection to cameras
+#script: pytest
+jobs:
+  include:
+  - stage: build docker image
+    python: '3.7'
+    script: "./.travis/deploy.sh"
+    if: type != pull_request AND (branch IN (alarm-local, master) OR tag IS present)
+    addons:
+      apt:
+        sources:
+        - sourceline: deb https://download.docker.com/linux/ubuntu/ xenial stable
+          key_url: https://download.docker.com/linux/ubuntu/gpg
+        packages:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+  - stage: test
+    script: 
+      - export DOCKER_IMAGE_TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo "$TRAVIS_BRANCH-latest"; fi`
+      - docker run --rm "$DOCKER_USERNAME/cameraevents:$DOCKER_IMAGE_TAG"

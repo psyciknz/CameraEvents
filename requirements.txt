@@ -2,6 +2,6 @@ paho-mqtt
 pycurl
 ConfigParser
 requests
-imageio
-Slacker
+#imageio
+#Slacker
 

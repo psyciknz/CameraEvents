@@ -33,7 +33,6 @@ Set your mqtt options below:
 [MQTT Broker]
 IP: localhost                           ;MQTT Server name
 Port: 1883                              ;MQTT Port
-#not currently supported
 Mqtt_Username = ''                      ;MQTT username, without qoutes
 Mqtt_Password = ''                      ;MQTT password, without qoutes
 BaseTopic = 'CameraEvents'
@@ -105,7 +104,43 @@ eg
 CameraEvents/IVS/Garage CrossLineDetection With Human in RightToLeft direction for Gate region
 ```
 I'll add specifics later for IVS, as I've seen the "human" be vehicle and smoke also...I'll problably add a fitler for these.
+
+There is a generic Event suitable for being a motion sensor in Home Assistant or OpenHAB.
+```
+CameraEvents/<channel>/event
+```
+
+The payload for this event will be ON or OFF.
+
+
+# Subscribed Events
+
+Camera Events subscribes to two messages currently.
+
+```
+CameraEvents/<index>/picture
+```
+
+A picture message, takes the camera index (starting at 0 or 1 depending on your NVR/Camera), and if that index matches what is on offer it will generate a snapshot and post it.
+
+The payload is unimportant.  But it must be there.  An example mosquitto_pub command:
+```
+mosquitto_pub -h mqttserver -t CameraEvents/1/picture -m ON
+```
+
+```
+CameraEvents/<devicename>/alerts
+```
+This message takes a payload on ON or OFF and when the device name matches a camera in the config.ini, it will turn off alerts for that device (they will not post images until turned back on)
+
+
+
 # Problems/Change History
+
+2020-02-17
+- Added MQTT Authentication to code @vogelfreiheit
+- Adding AlarmLocal event processing (https://github.com/psyciknz/CameraEvents/issues/8)
+- Fixed a bug in calling for a snapshot via CameraEvents/<index>/picture (added to Readme)
 
 2019-02-02 
 - Found Solution to snapshot problem, but new firmware (for me) is index+1 - this isn't currently configurable.
