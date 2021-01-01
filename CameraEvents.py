@@ -709,7 +709,7 @@ class DahuaDevice():
                     if self.alerts:
                         #possible new process:
                         #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
-                        process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText,self.publishImages)))
+                        process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText),self.publishImages))
                         process.daemon = True                            # Daemonize thread
                         process.start() 
                 else:   #if Alarm["action"] == "Start":
