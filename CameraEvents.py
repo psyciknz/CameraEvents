@@ -36,7 +36,7 @@ import base64
 
 #Version String must be in this format (with o to replace 0) = versi0n = "<version>"
 #for travis to find it.
-version = "0.2.2"
+version = "0.2.3"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
 mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
@@ -666,7 +666,8 @@ class DahuaDevice():
                         process.start()    
                 else: #if Alarm["action"] == "Start":
                     eventStart = False
-                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
+                    #https://github.com/psyciknz/CameraEvents/issues/22
+                    self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"OFF")
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                     #_LOGGER.info("ReceiveData: calling search Clips") 
                     #starttime = datetime.datetime.now() - datetime.timedelta(minutes=1)
