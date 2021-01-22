@@ -11,9 +11,10 @@ before_install:
   - sudo apt-get update -q
   - sudo apt-get -y install python3-dev 
   - sudo apt-get -y install libgnutls28-dev
+  - python -m pip install --upgrade pip
     
 # command to run tests
-install: python -m pip install -r requirements.txt
+install: pip install -r requirements.txt
 script: pytest ./Tests/test_onreceive.py
 # runs all but needs connection to cameras
 #script: pytest
