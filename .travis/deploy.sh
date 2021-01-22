@@ -24,4 +24,5 @@ export DOCKER_CLI_EXPERIMENTAL=enabled
 
 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 docker buildx create --use
-docker buildx build --progress plain --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8 -t "psyciknz/cameraevents:$DOCKER_IMAGE_TAG" -t "psyciknz/cameraevents:$DOCKER_VERSION_TAG"  --push .
+#docker buildx build --progress plain --platform linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8 -t "psyciknz/cameraevents:$DOCKER_IMAGE_TAG" -t "psyciknz/cameraevents:$DOCKER_VERSION_TAG"  --push .
+docker buildx build --progress plain --platform linux/amd64 -t "psyciknz/cameraevents:$DOCKER_IMAGE_TAG" -t "psyciknz/cameraevents:$DOCKER_VERSION_TAG"  --push .
