@@ -31,7 +31,7 @@ def create_device():
 
     basetopic = "CameraEvents"
     
-    device = CameraEvents.DahuaDevice("Camera", device_cfg, client,basetopic)
+    device = CameraEvents.DahuaDevice("Camera", device_cfg, client,basetopic,homebridge=False,publishImages=True)
     return device
 
 def func(x):
@@ -51,10 +51,10 @@ def test_dahua_receive_video_motion():
     device = create_device()
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/VideoMotion/Camera:1" and device.client.payload == 'ON'
+    assert device.client.topic == "CameraEvents/Camera:1/event" and device.client.payload == 'ON'
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Stop;index=1")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/VideoMotion/Camera:1" and device.client.payload == 'OFF'
+    assert device.client.topic == "CameraEvents/Camera:1/event" and device.client.payload == 'OFF'
 
 
 def test_dahua_receive_alarm_local():
