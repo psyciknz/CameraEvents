@@ -342,6 +342,7 @@ class DahuaDevice():
                     #imagesize = 0
                     #expectedsize = 0
                     image = None
+                    loadurl = ""
                     _LOGGER.info("SearchImages: Found " + str(len(mediaItem)) + " images to process")
                     
                     filepath = ""

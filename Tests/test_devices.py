@@ -63,6 +63,7 @@ def test_dahua_take_snapshot():
     device.host = 'cam-nvr.andc.nz'
     device.user = 'IOS'
     device.password = 'Dragon25'
+    sized = False
     image = device.SnapshotImage(1,"Garage","message",publishImages=False)
     assert image is not None
     if len(image) > 600:
