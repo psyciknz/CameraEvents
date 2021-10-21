@@ -102,6 +102,7 @@ class DahuaDevice():
         self.port = device_cfg.get("port")
         self.alerts = device_cfg.get("alerts")
         self.token = device_cfg.get("token")
+        self.json = device_cfg.get("json")
         self.client = client
         self.basetopic = basetopic
         self.homebridge = homebridge
@@ -697,7 +698,7 @@ class DahuaDevice():
                         crossData = json.loads(Alarm["data"])
                         _LOGGER.info(Alarm["Code"] + " received: " + Alarm["data"] )
                         if "Direction" not in crossData:
-                            direction = "unknown"                        
+                            direction = "unknown"
                         else:
                             direction = crossData["Direction"]
 
@@ -707,7 +708,11 @@ class DahuaDevice():
                     except Exception as ivsExcept:
                         _LOGGER.error("Error getting IVS data: " + str(ivsExcept))
                         
-                    self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] ,regionText)
+                    if self.json:
+                        self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] , json.dumps({'name':Alarm["Code"], 'reason': crossData["Name"], 'object': crossData["Object"]["ObjectType"]}))
+                    else:
+                        self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] ,regionText)
+
                     if self.alerts:
                         #possible new process:
                         #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
@@ -1020,6 +1025,7 @@ if __name__ == '__main__':
             camera["auth"] = cp.get(camera_key,'auth')
             camera["events"] = cp.get(camera_key,'events')
             camera["alerts"] = cp.getboolean(camera_key,"alerts",fallback=True)
+            camera["json"] = cp.getboolean(camera_key,"json",fallback=False)
             channels = {}
             if cp.has_option(camera_key,'channels'):
                 try:
