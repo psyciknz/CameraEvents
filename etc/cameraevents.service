@@ -1,0 +1,63 @@
+# ----------------------------------------------
+#  systemd unit configuration file for cameraevents
+# ----------------------------------------------
+#
+# Intro
+# -----
+# This systemd script assumes you are running cameraevents
+# from /opt/cameraevents using a Python virtualenv inside.
+#
+# Setup
+# -----
+# Basic setup::
+#
+#   mkdir /opt/cameraevents
+#   virtualenv /opt/cameraevents
+#   git clone https://github.com/psyciknz/CameraEvents /opt/cameraevents/CameraEvents
+#
+# Prepare and enable the systemd service::
+#
+#   useradd --create-home --shell /bin/bash cameraevents
+#   cp etc/cameraevents.default /etc/default/cameraevents
+#   cp etc/cameraevents.service /usr/lib/systemd/system/
+#   cp etc/cameraevents.logrotate /etc/logrotate.d/cameraevents
+#   mkdir /var/log/cameraevents
+#   chown cameraevents:cameraevents /var/log/cameraevents
+#   systemctl enable cameraevents
+#
+# Configuration
+# -------------
+# The configuration file is located at /etc/cameraevents/CameraEvents/config.ini,
+#
+# Setup example configuration::
+#
+#   cp config-master.ini /etc/cameraevents/CameraEvents/config.ini
+#
+# Start
+# -----
+# ::
+#
+#   systemctl start cameraevents
+#
+
+[Unit]
+Description=cameraevents dahua mqtt notification service
+Documentation=https://github.com/psyciknz/CameraEvents
+After=network.target
+
+[Service]
+Type=simple
+User=cameraevents
+Group=cameraevents
+LimitNOFILE=65536
+Environment='STDOUT=/var/log/cameraevents/cameraevents.log'
+Environment='STDERR=/var/log/cameraevents/cameraevents.log'
+EnvironmentFile=/etc/default/cameraevents
+WorkingDirectory=/opt/cameraevents/CameraEvents
+ExecStart=/bin/sh -c 'exec /opt/cameraevents/bin/python3 CameraEvents.py >>${STDOUT} 2>>${STDERR}'
+KillMode=control-group
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=cameraevents.service
