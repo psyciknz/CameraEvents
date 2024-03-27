@@ -1,0 +1,20 @@
+[MQTT Broker]
+IP: mqtt
+Port: 1883
+BaseTopic = 'CameraEvents'
+PostImagesToMQTT=False
+
+[Cameras]
+camera1=Dahua-1
+
+[Dahua-1]
+host=<ip-addrs>
+protocol=http
+name=NVR
+isNVR=True
+port=<port>
+user=<login>
+pass=<passwd>
+auth=digest/basis
+events=<Event Code>
+alerts=True
