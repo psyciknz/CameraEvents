@@ -38,7 +38,7 @@ import base64
 #for travis to find it.
 version = "0.2.3"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
-mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
+#mqttc = paho.Client(paho.CallbackAPIVersion.VERSION1, "CameraEvents-" + socket.gethostname(), clean_session=True)
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
@@ -78,10 +78,7 @@ class DahuaDevice():
     SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?channel={channel}"
     #SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?chn={channel}"
     SNAPSHOT_EVENT = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attachFileProc&Flags[0]=Event&Events=%5B{events}%5D"
-     #cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]    
-
-    
-    
+    #cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
 
     def __init__(self,  name, device_cfg, client, basetopic, homebridge, publishImages):
         if device_cfg["channels"]:
@@ -115,10 +112,8 @@ class DahuaDevice():
             host=self.host,
             port=self.port,
             events=device_cfg.get("events")
-            
         )
-        
-        
+
         self.isNVR = False
         try:
             # Get NVR parm, to get channel names if NVR
@@ -135,9 +130,9 @@ class DahuaDevice():
                     protocol=self.protocol,
                     host=self.host,
                     port=self.port,
-                    events=device_cfg.get("events")    
+                    events=device_cfg.get("events")
                 )
-                
+
                 #RPCConnect(1)
 
                 # get channel names here
@@ -174,7 +169,7 @@ class DahuaDevice():
 
         return -1
 
- 
+
     def SnapshotImage(self, channel, channelName, message,publishImages=False):
         """Takes a snap shot image for the specified channel
         channel (index number starts at 1)
@@ -194,7 +189,7 @@ class DahuaDevice():
                 image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPDigestAuth(self.user, self.password)).content
             else:
                 image = requests.get(imageurl, stream=True,auth=requests.auth.HTTPBasicAuth(self.user, self.password)).content
-        
+
             imagepayload = ""
             if image is not None and len(image) > 0:
                 #fp = open("image.jpg", "wb")
@@ -208,23 +203,21 @@ class DahuaDevice():
                 else:
                     msgpayload = json.dumps({"message":message,"imagurl":imageurl})
                 #msgpayload = "{{ \"message\": \"{0}\", \"imagebase64\": \"{1}\" }}".format(message,imgpayload)
-                
+
                 self.client.publish(self.basetopic +"/{0}/Image".format(channelName),msgpayload)
 
         except Exception as ex:
             _LOGGER.error("Error sending image: " + str(ex))
             try:
-                
                 with open("default.png", 'rb') as thefile:
                     imagepayload = thefile.read().encode("base64")
                 msgpayload = json.dumps({"message":"ERR:" + message, "imagebase64": imagepayload})
             except:
                 pass
-        
-       
+
         return image
 
-    
+
     def SearchImages(self,channel,starttime, endtime, events,publishImages=False, message='',delay=0):
         """Searches for images for the channel
         channel is a numerical channel index (starts at 1)
@@ -277,7 +270,7 @@ class DahuaDevice():
         #Find next File
         # http://<ip>/cgi-bin/mediaFileFind.cgi?action=findNextFile&object=<objectId>&count=<fileCount> Comment 
         MEDIA_NEXT="{protocol}://{host}:{port}/cgi-bin/mediaFileFind.cgi?action=findNextFile&object={object}&count=50"
-        
+
         MEDIA_LOADFILE="{protocol}://{host}:{port}/cgi-bin/RPC_Loadfile{file}"
 
         #Close Finder
@@ -524,7 +517,7 @@ class DahuaDevice():
                     mediaItem = self.ConvertLinesToDict(result.content.decode())
                     finderurl = MEDIA_CLOSE.format(host=self.host,protocol=self.protocol,port=self.port,
                         object=objectId)
-                    
+
                     # Close the media find object
                     result = s.get(finderurl,auth=auth,cookies=cookies).content
                     #images = []
@@ -532,7 +525,7 @@ class DahuaDevice():
                     #expectedsize = 0
                     image = None
                     _LOGGER.info("SearchClips: Found " + str(len(mediaItem)) + " images to process")
-                    
+
                     filepath = ""
 
                     if type(mediaItem) is list:
@@ -560,7 +553,7 @@ class DahuaDevice():
                             self.client.publish(self.basetopic +"/{0}/Clip".format(channelName),loadurl)
                         #result = s.get(loadurl,auth=auth,cookies=cookies)
                         #image = self.ProcessSearchImage(mediaItem,result)
-                        
+
             else: #if result.status_code == 200:
                 _LOGGER.info("SearchClips: Nothing Found for " + objectId)
         except Exception as ex:
@@ -583,7 +576,7 @@ class DahuaDevice():
         image = result.content
         imagesize = len(image)
         #image = result.content
-        
+
         expectedsize =  int(item['Length'])
         expectedsize = int(float(expectedsize) * 0.65)
         _LOGGER.debug("SearchImages: Image " + item['FilePath'] + " Expected Size: (85%)" + str(expectedsize) 
@@ -625,7 +618,7 @@ class DahuaDevice():
     #on receive data from camera.
     def OnReceive(self, data):
         #self.client.loop_forever()
-        Data = data.decode("utf-8", errors="ignore")    
+        Data = data.decode("utf-8", errors="ignore")
         _LOGGER.debug("[{0}]: {1}".format(self.Name, Data))
 
         crossData = ""
@@ -636,7 +629,7 @@ class DahuaDevice():
 
             if not Line.startswith("Code="):
                  continue
-            
+
             Alarm = dict()
             Alarm["name"] = self.Name
             for KeyValue in Line.split(';'):
@@ -707,7 +700,7 @@ class DahuaDevice():
                         regionText = "{} With {} in {} direction for {} region".format(Alarm["Code"],object,direction,region)
                     except Exception as ivsExcept:
                         _LOGGER.error("Error getting IVS data: " + str(ivsExcept))
-                        
+
                     if self.json:
                         self.client.publish(self.basetopic +"/IVS/" + Alarm["channel"] , json.dumps({'name':Alarm["Code"], 'reason': crossData["Name"], 'object': crossData["Object"]["ObjectType"]}))
                     else:
@@ -738,7 +731,7 @@ class DahuaDevice():
                     eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")
                 self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/" + Alarm["name"],Alarm["Code"])
-                
+
             #if self.homebridge:
             #    if eventStart:
             #        self.client.publish(self.basetopic + "/motion",camera)
@@ -811,7 +804,7 @@ class DahuaEventThread(threading.Thread):
         self.basetopic = mqtt["basetopic"]
         self.homebridge = mqtt["homebridge"]
 
-        self.client = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
+        self.client = paho.Client(paho.CallbackAPIVersion.VERSION2, "CameraEvents-" + socket.gethostname(), clean_session=True)
         if not mqtt["user"] is None and not mqtt["user"] == '':
             self.client.username_pw_set(mqtt["user"], mqtt["password"])
         self.client.on_connect = self.mqtt_on_connect
@@ -873,7 +866,7 @@ class DahuaEventThread(threading.Thread):
                 break
 
         Ret = self.CurlMultiObj.select(1.0)
-        while not self.stopped.isSet():
+        while not self.stopped.is_set():
             # Sleeps to ease load on processor
             time.sleep(.05)
             heartbeat = heartbeat + 1
@@ -912,9 +905,9 @@ class DahuaEventThread(threading.Thread):
                         DahuaDevice.Reconnect = None
             #if Ret != pycurl.E_CALL_MULTI_PERFORM: break
 
-    def mqtt_on_connect(self, client, userdata, flags, rc):
-        if rc==0:
-            _LOGGER.info("Connected to MQTT OK Returned code={0}".format(rc))
+    def mqtt_on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code==0:
+            _LOGGER.info("Connected to MQTT OK Returned code={0}".format(reason_code))
             self.client.connected_flag=True
             self.client.publish(self.basetopic +"/$online",True,qos=0,retain=True)
             self.client.publish(self.basetopic +"/$version",version,qos=0,retain=True)
@@ -935,11 +928,11 @@ class DahuaEventThread(threading.Thread):
             #self.client.subscribe("CameraEventsPy/alerts")
             
         else:
-            _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format("self.Name",rc) )
+            _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format("self.Name",reason_code) )
             self.client.connected_flag=False
 
-    def mqtt_on_disconnect(self, client, userdata, rc):
-        logging.info("disconnecting reason  "  +str(rc))
+    def mqtt_on_disconnect(self, client, userdata, flags, reason_code, properties):
+        logging.info("disconnecting reason  "  +str(reason_code))
         self.client.connected_flag=False
         
 
@@ -966,8 +959,8 @@ class DahuaEventThread(threading.Thread):
                 else:
                     device.SnapshotImage(channel+device.snapshotoffset,msgchannel,"Snap Shot Image")
                 break
-    
-                    
+
+
     def mqtt_on_alert_message(self,client, userdata, msg):
         if msg.payload.decode("utf-8").lower() == 'on' or msg.payload.decode("utf-8").lower() == 'true':
             newState = True
@@ -1034,7 +1027,7 @@ if __name__ == '__main__':
                         channelIndex = channel.split(':')[0]
                         channelName = channel.split(':')[1]
                         channels[int(channelIndex)] = channelName
-                        
+
                 except Exception as e:
                     _LOGGER.warning("Warning, No channel list in config (may be obtained from NVR):" + str(e))
                     channels = {}
@@ -1066,8 +1059,4 @@ if __name__ == '__main__':
         dahua_event.start()
     except Exception as ex:
         _LOGGER.error("Error starting:" + str(ex))
-
-    
-
-    
 
