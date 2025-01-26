@@ -1,6 +1,6 @@
 # CameraEvents [![Build Status](https://travis-ci.com/psyciknz/CameraEvents.svg?branch=master)](https://travis-ci.com/psyciknz/CameraEvents)
 
-
+## 2025 - I havent' used this service for a number of years, reverting to the Dahua app (it annoyed me I could not get access to the playback links from the DMSS app that would take you to the camera to view an event, only snapshots).  Happy for others to hack around in it, and/or take it over.
 
 Docker/Python service for attaching to Dahua camera events api.  Posts messages to mqtt upon events.
 
