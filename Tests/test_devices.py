@@ -60,7 +60,7 @@ def test_dahua_create():
 
 def test_dahua_take_snapshot():
     device = create_device()
-    device.host = 'cam-nvr.andc.nz'
+    device.host = '192.168.10.65'
     device.user = 'IOS'
     device.password = 'Dragon25'
     image = device.SnapshotImage(1,"Garage","message",publishImages=False)
@@ -71,7 +71,7 @@ def test_dahua_take_snapshot():
 
 def test_dahua_search_images():
     device = create_device()
-    device.host = 'cam-nvr.andc.nz'
+    device.host = '192.168.10.65'
     device.user = 'IOS'
     device.password = 'Dragon25'
     starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
@@ -85,7 +85,7 @@ def test_dahua_search_images():
 
 def test_dahua_search_clips():
     device = create_device()
-    device.host = 'cam-nvr.andc.nz'
+    device.host = '192.168.10.65'
     device.user = 'IOS'
     device.password = 'Dragon25'
     starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
