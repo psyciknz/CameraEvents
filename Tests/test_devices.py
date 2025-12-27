@@ -71,7 +71,7 @@ def test_dahua_take_snapshot():
 
 def test_dahua_search_images():
     device = create_device()
-    device.host = '192.168.10.65'
+    device.host = '192.168.10.66'
     device.user = 'IOS'
     device.password = 'Dragon25'
     starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
@@ -85,10 +85,10 @@ def test_dahua_search_images():
 
 def test_dahua_search_clips():
     device = create_device()
-    device.host = '192.168.10.65'
+    device.host = '192.168.10.66'
     device.user = 'IOS'
     device.password = 'Dragon25'
     starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
     endtime = datetime.datetime.now()
-    result = device.SearchClips(1, starttime,endtime,"",nopublish=False,message='')
+    result = device.SearchClips(1, starttime,endtime,"",message='')
     assert result is not None

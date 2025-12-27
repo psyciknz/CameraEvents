@@ -36,7 +36,7 @@ import base64
 
 version = "0.2.2"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
-mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
+#mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
