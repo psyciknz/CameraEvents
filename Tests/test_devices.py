@@ -1,5 +1,7 @@
+import logging
 import pytest
 import CameraEvents
+import DahuaDevice
 import datetime
 try:
     #python 3+
@@ -9,11 +11,29 @@ except:
     from ConfigParser import ConfigParser
 
 class dummy_mqtt(object):
-    pass
+    def __init__(self):
+        self.payload = ''
+        self.topic = ''
+    
     def publish(self,topic,payload):
+        self.payload = payload
+        self.topic = topic
         pass
 
 def create_device():
+    
+    _LOGGER = logging.getLogger(__name__)
+    _LOGGER.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    # create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # add formatter to ch
+    ch.setFormatter(formatter)
+    _LOGGER.addHandler(ch)
+    
     device_cfg = {}
     channels = {}
     device_cfg["channels"] = channels
@@ -33,11 +53,12 @@ def create_device():
 
     basetopic = "CameraEvents"
     
-    device = CameraEvents.DahuaDevice("Camera", device_cfg, client,basetopic,homebridge=False,publishImages=True)
+    device = DahuaDevice.DahuaDevice("Camera", _LOGGER,device_cfg, client,basetopic,homebridge=False,publishImages=True)
     return device
 
 def read_config():
     cp = ConfigParser()
+    cameras = {}
     filename = {"config.ini","conf/config.ini"}
     dataset = cp.read(filename)
 
@@ -51,6 +72,12 @@ def read_config():
             camera = {}
             #temp = cp.get(camera_key,"host")
             camera["host"] = cp.get(camera_key,'host')
+            camera["user"] = cp.get(camera_key,'user')
+            camera["password"] = cp.get(camera_key,'pass')
+            camera["auth"] = cp.get(camera_key,'auth')
+            cameras[camera_key] = camera
+            
+        return cameras
     except Exception as ex:
         pass
 
@@ -60,9 +87,13 @@ def test_dahua_create():
 
 def test_dahua_take_snapshot():
     device = create_device()
-    device.host = '192.168.10.65'
-    device.user = 'IOS'
-    device.password = 'Dragon25'
+    camera_items = read_config()
+    if "NVR" in camera_items:
+        device.host = camera_items["NVR"]["host"]
+        device.user = camera_items["NVR"]["user"]
+        device.password = camera_items["NVR"]["password"]
+        device.auth = camera_items["NVR"]["auth"]
+    
     image = device.SnapshotImage(1,"Garage","message",publishImages=False)
     assert image is not None
     if len(image) > 600:
@@ -71,9 +102,12 @@ def test_dahua_take_snapshot():
 
 def test_dahua_search_images():
     device = create_device()
-    device.host = '192.168.10.66'
-    device.user = 'IOS'
-    device.password = 'Dragon25'
+    camera_items = read_config()
+    if "NVR" in camera_items:
+        device.host = camera_items["NVR"]["host"]
+        device.user = camera_items["NVR"]["user"]
+        device.password = camera_items["NVR"]["password"]
+        device.auth = camera_items["NVR"]["auth"]
     starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
     endtime = datetime.datetime.now()
     result = device.SearchImages(1, starttime,endtime,"",publishImages=False,message='')
@@ -85,9 +119,13 @@ def test_dahua_search_images():
 
 def test_dahua_search_clips():
     device = create_device()
-    device.host = '192.168.10.66'
-    device.user = 'IOS'
-    device.password = 'Dragon25'
+    camera_items = read_config()
+    if "NVR" in camera_items:
+        device.host = camera_items["NVR"]["host"]
+        device.user = camera_items["NVR"]["user"]
+        device.password = camera_items["NVR"]["password"]
+        device.auth = camera_items["NVR"]["auth"]
+        
     starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
     endtime = datetime.datetime.now()
     result = device.SearchClips(1, starttime,endtime,"",message='')
