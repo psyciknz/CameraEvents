@@ -32,8 +32,8 @@ class DahuaDevice():
     #SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?chn={channel}"
     SNAPSHOT_EVENT = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attachFileProc&Flags[0]=Event&Events=%5B{events}%5D"
      #cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]    
-    PLAYBACK_TEMPLATE = "rtsp://{host}:{port}/cgi-bin/playback.cgi?channel={channel}&starttime={starttime}&endtime={endtime}"
-
+    PLAYBACK_TEMPLATE = "rtsp://{host}:{port}/cam/playback?channel={channel}&starttime={starttime}&endtime={endtime}"
+    
     
     
 
@@ -578,8 +578,8 @@ class DahuaDevice():
                 host=self.host,
                 port  = 554,
                 channel=channel+1,
-                starttime=playbackStart.strftime("%Y-%m-%d%%20%H:%M:%S"),
-                endtime=playbackEnd.strftime("%Y-%m-%d%%20%H:%M:%S")
+                starttime=playbackStart.strftime("%Y_%m_%d_%H_%M_%S"),
+                endtime=playbackEnd.strftime("%Y_%m_%d_%H_%M_%S")
             )
         return playbackurl
 
