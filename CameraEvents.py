@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#!/usr/bin/python3
 """
 Attach event listener to Dahua devices
 Borrowed code from https://github.com/johnnyletrois/dahua-watch
@@ -6,12 +8,8 @@ Author: PsycikNZ
 """
 
 
-REQUIREMENTS = ['pycurl>=7']
-
 import threading
-import requests
 import datetime
-import re
 import time
 #import imageio
 #from PIL import ImageFile
@@ -31,12 +29,11 @@ import socket
 import pycurl
 import json
 import time
-import paho
 from paho.mqtt import client as mqtt_client   # pip install paho-mqtt
 import base64
 import DahuaDevice
 
-version = "0.2.2"
+version = "0.3.0"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
 #mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
 
