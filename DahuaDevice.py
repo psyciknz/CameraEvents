@@ -15,12 +15,7 @@ try:
 except:
     # Python 2.7
     from ConfigParser import ConfigParser
-import logging
-import os
-import socket
-import pycurl
 import json
-import time
 #import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 

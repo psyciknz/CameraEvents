@@ -1,6 +1,5 @@
 import logging
 import pytest
-import CameraEvents
 import DahuaDevice
 import datetime
 try:
@@ -69,7 +68,6 @@ def read_config():
         camera_items = cp.items( "Cameras" )
         for key, camera_key in camera_items:
             #do something with path
-            camera_cp = cp.items(camera_key)
             camera = {}
             #temp = cp.get(camera_key,"host")
             camera["host"] = cp.get(camera_key,'host')
@@ -154,4 +152,4 @@ def test_dahua_playback_url():
     result = device.CreatePlaybackUrl(1, starttime)
     
     assert result is not None   
-    assert checktime.strftime("%Y-%m-%d%%20%H:%M:%S") in result
+    assert checktime.strftime("%Y_%m_%d_%H_%M_%S") in result

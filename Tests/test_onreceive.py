@@ -80,20 +80,21 @@ def test_dahua_receive_alarm_local():
     device = Tests.test_devices.create_device()
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Start;index=1")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/AlarmLocal/1" and device.client.payload == 'ON'
+    assert "CameraEvents/AlarmLocal/1" in device.client.messages and device.client.messages["CameraEvents/AlarmLocal/1"] == 'ON'
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Stop;index=1")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/AlarmLocal/1" and device.client.payload == 'OFF'
+    assert "CameraEvents/AlarmLocal/1" in device.client.messages and device.client.messages["CameraEvents/AlarmLocal/1"] == 'OFF'
+    
 
 def test_dahua_receive_alarm_local_Index_mismatch():
     device = Tests.test_devices.create_device()
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Start;index=5")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/AlarmLocal/5" and device.client.payload == 'ON'
+    assert "CameraEvents/AlarmLocal/5" in device.client.messages and device.client.messages["CameraEvents/AlarmLocal/5"] == 'ON'
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=AlarmLocal;action=Stop;index=5")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/AlarmLocal/5" and device.client.payload == 'OFF'
-
+    assert "CameraEvents/AlarmLocal/5" in device.client.messages and device.client.messages["CameraEvents/AlarmLocal/5"] == 'OFF'
+    
 
 def test_dahua_receive_crossRegion():
     device = Tests.test_devices.create_device()
@@ -146,6 +147,8 @@ def test_dahua_receive_crossRegion():
     device.OnReceive(data)
     
     assert device is not None
+    assert "CameraEvents/Camera:1/event" in device.client.messages and device.client.messages["CameraEvents/Camera:1/event"] == 'ON'
+    assert "CameraEvents/IVS/Camera:1" in device.client.messages and device.client.messages["CameraEvents/IVS/Camera:1"] == 'CrossRegionDetection With Human in Enter direction for Courtyard region'
 
 def test_dahua_receive_crossRegion_createSnapshot():
     device = Tests.test_devices.create_device()
@@ -198,6 +201,8 @@ def test_dahua_receive_crossRegion_createSnapshot():
     device.OnReceive(data)
     
     assert device is not None
+    assert "CameraEvents/Camera:1/event" in device.client.messages and device.client.messages["CameraEvents/Camera:1/event"] == 'ON'
+    assert "CameraEvents/IVS/Camera:1" in device.client.messages and device.client.messages["CameraEvents/IVS/Camera:1"] == 'CrossRegionDetection With Human in Enter direction for Courtyard region'
 
 def test_dahua_receive_crossRegion_NoDirection():
     device = Tests.test_devices.create_device()
@@ -247,6 +252,9 @@ def test_dahua_receive_crossRegion_NoDirection():
     '"UTCMS" : 633 ' \
     '} ' )
     device.OnReceive(data)
+    assert device is not None
+    assert "CameraEvents/Camera:1/event" in device.client.messages and device.client.messages["CameraEvents/Camera:1/event"] == 'ON'
+    assert "CameraEvents/IVS/Camera:1" in device.client.messages and device.client.messages["CameraEvents/IVS/Camera:1"] == 'CrossRegionDetection With Human in unknown direction for Courtyard region'
     
 def test_dahua_receive_crossRegion_NoName():
     device = Tests.test_devices.create_device()
@@ -297,10 +305,12 @@ def test_dahua_receive_crossRegion_NoName():
     device.OnReceive(data)
 
     assert device is not None
+    assert "CameraEvents/Camera:1/event" in device.client.messages and device.client.messages["CameraEvents/Camera:1/event"] == 'ON'
+    assert "CameraEvents/IVS/Camera:1" in device.client.messages and device.client.messages["CameraEvents/IVS/Camera:1"] == 'CrossRegionDetection'
 
 def test_dahua_receive_crossLine():
-   device = Tests.test_devices.create_device()
-   data = str.encode('Code=CrossLineDetection;action=Start;index=0;data={'\
+    device = Tests.test_devices.create_device()
+    data = str.encode('Code=CrossLineDetection;action=Start;index=0;data={'\
    '"Class" : "Normal",'\
    '"CountInGroup" : 1,'\
    '"DetectLine" : ['\
@@ -336,6 +346,8 @@ def test_dahua_receive_crossLine():
    '"UTC" : 1549080650.0,'\
    '"UTCMS" : 702'\
    '} ')
-   device.OnReceive(data)
+    device.OnReceive(data)
     
-   assert device is not None
+    assert device is not None
+    assert "CameraEvents/Camera/event" in device.client.messages and device.client.messages["CameraEvents/Camera/event"] == 'ON'
+    assert "CameraEvents/IVS/Camera" in device.client.messages and device.client.messages["CameraEvents/IVS/Camera"] == 'CrossLineDetection With Smoke in RightToLeft direction for Gate region'

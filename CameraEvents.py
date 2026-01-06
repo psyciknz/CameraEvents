@@ -24,13 +24,9 @@ except:
     # Python 2.7
     from ConfigParser import ConfigParser
 import logging
-import os
 import socket
 import pycurl
-import json
-import time
 from paho.mqtt import client as mqtt_client   # pip install paho-mqtt
-import base64
 import DahuaDevice
 
 version = "0.3.0"
@@ -88,7 +84,7 @@ class DahuaEventThread(threading.Thread):
         self.homebridge = mqtt_cfg["homebridge"]
 
         self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2,"CameraEvents-" + socket.gethostname(), clean_session=True)
-        if not mqtt_cfg["user"] is None and not mqtt_cfg["user"] == '':
+        if mqtt_cfg["user"] is not None and not mqtt_cfg["user"] == '':
             self.client.username_pw_set(mqtt_cfg["user"], mqtt_cfg["password"])
         self.client.on_connect = self.mqtt_on_connect
         self.client.on_disconnect = self.mqtt_on_disconnect
@@ -149,7 +145,6 @@ class DahuaEventThread(threading.Thread):
                 break
 
         Ret = self.CurlMultiObj.select(1.0)
-        while not self.stopped.is_set():
         while not self.stopped.is_set():
             # Sleeps to ease load on processor
             time.sleep(.05)
