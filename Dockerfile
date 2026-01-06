@@ -1,4 +1,4 @@
-FROM python:3.13-stretch
+FROM python:3.13-bookworm
 
 # based on https://github.com/pfichtner/docker-mqttwarn
 
