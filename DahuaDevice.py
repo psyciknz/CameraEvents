@@ -21,7 +21,7 @@ import socket
 import pycurl
 import json
 import time
-import paho.mqtt.client as paho   # pip install paho-mqtt
+#import paho.mqtt.client as paho   # pip install paho-mqtt
 import base64
 
 class DahuaDevice():
@@ -32,6 +32,7 @@ class DahuaDevice():
     #SNAPSHOT_TEMPLATE = "{protocol}://{host}:{port}/cgi-bin/snapshot.cgi?chn={channel}"
     SNAPSHOT_EVENT = "{protocol}://{host}:{port}/cgi-bin/eventManager.cgi?action=attachFileProc&Flags[0]=Event&Events=%5B{events}%5D"
      #cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]    
+    PLAYBACK_TEMPLATE = "rtsp://{host}:{port}/cgi-bin/playback.cgi?channel={channel}&starttime={starttime}&endtime={endtime}"
 
     
     
@@ -60,6 +61,8 @@ class DahuaDevice():
         self.basetopic = basetopic
         self.homebridge = homebridge
         self.snapshotoffset = device_cfg.get("snapshotoffset")
+        self.playbackoffset = device_cfg.get("playbackoffset")
+        self.playbacklength = device_cfg.get("playbacklength")
         self.publishImages = publishImages
 
         #generate the event url
@@ -98,11 +101,12 @@ class DahuaDevice():
                 self.logger.debug("Device " + name + " Getting channel ids: " + self.channelurl)
                 response = requests.get(self.channelurl,auth=requests.auth.HTTPDigestAuth(self.user,self.password))
                 for line in response.text.splitlines():
-                    match = re.search(r'.\[(?P<index>[0-4])\]\..+\=(?P<channel>.+)',line)
+                    match = re.search(r'.\[(?P<index>\d+?)\]\..+\=(?P<channel>.+)',line)
                     if match:
                         _index = int(match.group("index"))
                         _channel = match.group("channel")
                         self.channels[_index] = _channel
+                        self.logger.debug("Device " + name + " Adding channel: " + str(_index) + " Name: " + _channel)
             else:
                 self.channels[0] = self.Name
 
@@ -564,6 +568,21 @@ class DahuaDevice():
         #fp.write(result.content) #r.text is the binary data for the PNG returned by that php script
         #fp.close()
 
+    def CreatePlaybackUrl(self, channel, starttime):
+        """Creates a playback url for the specified channel and starttime
+        channel (index number starts at 1)
+        starttime datetime object for start time of playback"""
+        playbackStart = starttime - datetime.timedelta(seconds=self.playbackoffset)
+        playbackEnd = playbackStart + datetime.timedelta(seconds=self.playbacklength)
+        playbackurl  = self.PLAYBACK_TEMPLATE.format(
+                host=self.host,
+                port  = 554,
+                channel=channel+1,
+                starttime=playbackStart.strftime("%Y-%m-%d%%20%H:%M:%S"),
+                endtime=playbackEnd.strftime("%Y-%m-%d%%20%H:%M:%S")
+            )
+        return playbackurl
+
     # Connected to camera
     def OnConnect(self):
         self.logger.debug("[{0}] OnConnect()".format(self.Name))
@@ -617,7 +636,12 @@ class DahuaDevice():
                         #http://192.168.10.66/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[VideoMotion%2CVideoLoss]
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"Motion Detected: {0}".format(Alarm["channel"]),self.publishImages))
                         process.daemon = True                            # Daemonize thread
-                        process.start()    
+                        process.start()
+                        
+                    #send playback url to playback topic
+                    if self.playbackoffset > -1:
+                        playbackurl = self.CreatePlaybackUrl(index,datetime.datetime.now())
+                        self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/playback" ,playbackurl)   
                 else: #if Alarm["action"] == "Start":
                     eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["Code"] + "/" + Alarm["channel"] ,"ON")
@@ -666,6 +690,9 @@ class DahuaDevice():
                         process = threading.Thread(target=self.SnapshotImage,args=(index+self.snapshotoffset,Alarm["channel"],"IVS: {0}: {1}".format(Alarm["channel"],regionText,self.publishImages)))
                         process.daemon = True                            # Daemonize thread
                         process.start() 
+                    if self.playbackoffset > -1:
+                        playbackurl = self.CreatePlaybackUrl(index,datetime.datetime.now())
+                        self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/playback" ,playbackurl)  
                 else:   #if Alarm["action"] == "Start":
                     eventStart = False
                     self.client.publish(self.basetopic +"/" + Alarm["channel"] + "/event" ,"OFF")

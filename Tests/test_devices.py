@@ -11,14 +11,13 @@ except:
     from ConfigParser import ConfigParser
 
 class dummy_mqtt(object):
+    messages = {}
     def __init__(self):
-        self.payload = ''
-        self.topic = ''
-    
+        self.messages.clear()
+        
     def publish(self,topic,payload):
-        self.payload = payload
-        self.topic = topic
-        pass
+        self.messages[topic] = payload
+        
 
 def create_device():
     
@@ -48,7 +47,9 @@ def create_device():
     device_cfg["port"] = 80
     device_cfg["alerts"] = False
     device_cfg["snapshotoffset"] = 0
-    client = dummy_mqtt()
+    device_cfg["playbackoffset"] = -1
+    device_cfg["playbacklength"] = -1
+    client = dummy_mqtt()   
     client.connected_flag = True
 
     basetopic = "CameraEvents"
@@ -75,6 +76,8 @@ def read_config():
             camera["user"] = cp.get(camera_key,'user')
             camera["password"] = cp.get(camera_key,'pass')
             camera["auth"] = cp.get(camera_key,'auth')
+            camera["playbackoffset"] = cp.getint(camera_key,'playbackoffset')
+            camera["playbacklength"] = cp.getint(camera_key,'playbacklength')   
             cameras[camera_key] = camera
             
         return cameras
@@ -130,3 +133,25 @@ def test_dahua_search_clips():
     endtime = datetime.datetime.now()
     result = device.SearchClips(1, starttime,endtime,"",message='')
     assert result is not None
+    
+    
+def test_dahua_playback_url():
+    device = create_device()
+    camera_items = read_config()
+    if "NVR" in camera_items:
+        device.host = camera_items["NVR"]["host"]
+        device.user = camera_items["NVR"]["user"]
+        device.password = camera_items["NVR"]["password"]
+        device.auth = camera_items["NVR"]["auth"]
+        
+        
+    device.playbackoffset = 10
+    device.playbacklength = 10
+    starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
+    
+    checktime = starttime - datetime.timedelta(seconds=device.playbackoffset)
+    
+    result = device.CreatePlaybackUrl(1, starttime)
+    
+    assert result is not None   
+    assert checktime.strftime("%Y-%m-%d%%20%H:%M:%S") in result

@@ -53,10 +53,27 @@ def test_dahua_receive_video_motion():
     device = Tests.test_devices.create_device()
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/Camera:1/event" and device.client.payload == 'ON'
+    assert "CameraEvents/VideoMotion/Camera:1" in device.client.messages 
+    assert device.client.messages["CameraEvents/VideoMotion/Camera:1"] == "ON" 
+    assert "CameraEvents/Camera:1/playback" not in device.client.messages
+    assert "CameraEvents/Camera:1/event" in device.client.messages and device.client.messages["CameraEvents/Camera:1/event"] == 'ON'
     data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Stop;index=1")
     device.OnReceive(data)
-    assert device.client.topic == "CameraEvents/Camera:1/event" and device.client.payload == 'OFF'
+    assert "CameraEvents/Camera:1/event" in device.client.messages  and device.client.messages["CameraEvents/Camera:1/event"] == 'OFF'
+    
+def test_dahua_receive_video_motion_with_playback():
+    device = Tests.test_devices.create_device()
+    device.playbackoffset = 10
+    device.playbacklength = 10
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Start;index=1")
+    device.OnReceive(data)
+    assert "CameraEvents/VideoMotion/Camera:1" in device.client.messages 
+    assert "CameraEvents/Camera:1/playback" in device.client.messages
+    assert device.client.messages["CameraEvents/VideoMotion/Camera:1"] == "ON"  
+    assert "CameraEvents/Camera:1/event" in device.client.messages and device.client.messages["CameraEvents/Camera:1/event"] == 'ON'
+    data = str.encode("--myboundary\r\nContent-Length:37\r\nCode=VideoMotion;action=Stop;index=1")
+    device.OnReceive(data)
+    assert "CameraEvents/Camera:1/event" in device.client.messages  and device.client.messages["CameraEvents/Camera:1/event"] == 'OFF'
 
 
 def test_dahua_receive_alarm_local():

@@ -31,7 +31,8 @@ import socket
 import pycurl
 import json
 import time
-import paho.mqtt.client as paho   # pip install paho-mqtt
+import paho
+from paho.mqtt import client as mqtt_client   # pip install paho-mqtt
 import base64
 import DahuaDevice
 
@@ -82,15 +83,15 @@ class DahuaEventThread(threading.Thread):
     NumCurlObjs = 0
 	
 
-    def __init__(self,  mqtt, cameras):
+    def __init__(self,  mqtt_cfg, cameras):
         """Construct a thread listening for events."""
 
-        self.basetopic = mqtt["basetopic"]
-        self.homebridge = mqtt["homebridge"]
+        self.basetopic = mqtt_cfg["basetopic"]
+        self.homebridge = mqtt_cfg["homebridge"]
 
-        self.client = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
-        if not mqtt["user"] is None and not mqtt["user"] == '':
-            self.client.username_pw_set(mqtt["user"], mqtt["password"])
+        self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1,"CameraEvents-" + socket.gethostname(), clean_session=True)
+        if not mqtt_cfg["user"] is None and not mqtt_cfg["user"] == '':
+            self.client.username_pw_set(mqtt_cfg["user"], mqtt_cfg["password"])
         self.client.on_connect = self.mqtt_on_connect
         self.client.on_disconnect = self.mqtt_on_disconnect
         self.client.message_callback_add(self.basetopic +"/+/picture",self.mqtt_on_picture_message)
@@ -100,7 +101,7 @@ class DahuaEventThread(threading.Thread):
 
         for device_cfg in cameras:
 
-            device = DahuaDevice.DahuaDevice(device_cfg.get("name"),_LOGGER, device_cfg, self.client,self.basetopic, self.homebridge, mqtt["mqttimages"])
+            device = DahuaDevice.DahuaDevice(device_cfg.get("name"),_LOGGER, device_cfg, self.client,self.basetopic, self.homebridge, mqtt_cfg["mqttimages"])
 
             _LOGGER.info("Device %s created on Url %s.  Alert Status: %s" % (device.Name, device.host, device.alerts))
 
@@ -132,7 +133,7 @@ class DahuaEventThread(threading.Thread):
         #connect to mqtt broker
         
         _LOGGER.debug("Connecting to MQTT Broker")
-        self.client.connect(mqtt["IP"], int(mqtt["port"]), 60)
+        self.client.connect(mqtt_cfg["IP"], int(mqtt_cfg["port"]), 60)
         
         _LOGGER.debug("Starting MQTT Loop")
         self.client.loop_start()
@@ -150,7 +151,7 @@ class DahuaEventThread(threading.Thread):
                 break
 
         Ret = self.CurlMultiObj.select(1.0)
-        while not self.stopped.isSet():
+        while not self.stopped.is_set():
             # Sleeps to ease load on processor
             time.sleep(.05)
             heartbeat = heartbeat + 1
@@ -314,13 +315,25 @@ if __name__ == '__main__':
                 except Exception as e:
                     _LOGGER.warning("Warning, No channel list in config (may be obtained from NVR):" + str(e))
                     channels = {}
-
+                    
+            camera["channels"] = channels
+            
             # added new snapshot offset section.
             if cp.has_option(camera_key,'snapshotoffset'):
                 camera["snapshotoffset"] = cp.getint(camera_key,'snapshotoffset')
             else:
                 camera["snapshotoffset"] = 0
-            camera["channels"] = channels
+            
+            # added new playback offset section.  If -1 turned off, else will start playback from this offset in seconds
+            if cp.has_option(camera_key,'playbackoffset'):
+                camera["playbackoffset"] = cp.getint(camera_key,'playbackoffset')
+            else:
+                camera["playbackoffset"] = -1
+            # sets playback length.
+            if cp.has_option(camera_key,'playbacklength') and camera["playbackoffset"] > -1:
+                camera["playbacklength"] = cp.getint(camera_key,'playbacklength')
+            else:
+                camera["playbacklength"] = 10
 
             token = ""
             if cp.has_option("Slack","token"):
@@ -329,15 +342,15 @@ if __name__ == '__main__':
 
             cameras.append(camera)
 
-        mqtt = {}
-        mqtt["IP"] = cp.get("MQTT Broker","IP")
-        mqtt["port"] = cp.get("MQTT Broker","port")
-        mqtt["basetopic"] = cp.get("MQTT Broker","BaseTopic")
-        mqtt["user"] = cp.get("MQTT Broker","user",fallback=None)
-        mqtt["password"] = cp.get("MQTT Broker","password",fallback=None)
-        mqtt["homebridge"] = cp.getboolean("MQTT Broker","HomebridgeEvents",fallback=False)
-        mqtt["mqttimages"] = cp.getboolean("MQTT Broker","PostImagesToMQTT",fallback=True)
-        dahua_event = DahuaEventThread(mqtt,cameras)
+        mqtt_cfg = {}
+        mqtt_cfg["IP"] = cp.get("MQTT Broker","IP")
+        mqtt_cfg["port"] = cp.get("MQTT Broker","port")
+        mqtt_cfg["basetopic"] = cp.get("MQTT Broker","BaseTopic")
+        mqtt_cfg["user"] = cp.get("MQTT Broker","user",fallback=None)
+        mqtt_cfg["password"] = cp.get("MQTT Broker","password",fallback=None)
+        mqtt_cfg["homebridge"] = cp.getboolean("MQTT Broker","HomebridgeEvents",fallback=False)
+        mqtt_cfg["mqttimages"] = cp.getboolean("MQTT Broker","PostImagesToMQTT",fallback=True)
+        dahua_event = DahuaEventThread(mqtt_cfg,cameras)
 
         dahua_event.start()
     except Exception as ex:
