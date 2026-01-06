@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  cameraevents:
+    build: .
+    image: psyciknz/cameraevents
+    volumes:
+      - ./config:/opt/cameraevents/conf
+    environment:
+      CAMERAEVENTSINI: /opt/cameraevents/conf/config.ini
+    user: cameraevents
+  mqtt:
+    image: eclipse-mosquitto:1.6
+    restart: unless-stopped
+

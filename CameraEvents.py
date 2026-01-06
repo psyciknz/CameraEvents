@@ -36,6 +36,7 @@ import DahuaDevice
 version = "0.3.0"
 #ImageFile.LOAD_TRUNCATED_IMAGES = True
 #mqttc = paho.Client("CameraEvents-" + socket.gethostname(), clean_session=True)
+#mqttc = paho.Client(paho.CallbackAPIVersion.VERSION1, "CameraEvents-" + socket.gethostname(), clean_session=True)
 
 _LOGGER = logging.getLogger(__name__)
 _LOGGER.setLevel(logging.DEBUG)
@@ -86,7 +87,7 @@ class DahuaEventThread(threading.Thread):
         self.basetopic = mqtt_cfg["basetopic"]
         self.homebridge = mqtt_cfg["homebridge"]
 
-        self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1,"CameraEvents-" + socket.gethostname(), clean_session=True)
+        self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2,"CameraEvents-" + socket.gethostname(), clean_session=True)
         if not mqtt_cfg["user"] is None and not mqtt_cfg["user"] == '':
             self.client.username_pw_set(mqtt_cfg["user"], mqtt_cfg["password"])
         self.client.on_connect = self.mqtt_on_connect
@@ -149,6 +150,7 @@ class DahuaEventThread(threading.Thread):
 
         Ret = self.CurlMultiObj.select(1.0)
         while not self.stopped.is_set():
+        while not self.stopped.is_set():
             # Sleeps to ease load on processor
             time.sleep(.05)
             heartbeat = heartbeat + 1
@@ -187,9 +189,9 @@ class DahuaEventThread(threading.Thread):
                         DahuaDevice.Reconnect = None
             #if Ret != pycurl.E_CALL_MULTI_PERFORM: break
 
-    def mqtt_on_connect(self, client, userdata, flags, rc):
-        if rc==0:
-            _LOGGER.info("Connected to MQTT OK Returned code={0}".format(rc))
+    def mqtt_on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code==0:
+            _LOGGER.info("Connected to MQTT OK Returned code={0}".format(reason_code))
             self.client.connected_flag=True
             self.client.publish(self.basetopic +"/$online",True,qos=0,retain=True)
             self.client.publish(self.basetopic +"/$version",version,qos=0,retain=True)
@@ -210,11 +212,11 @@ class DahuaEventThread(threading.Thread):
             #self.client.subscribe("CameraEventsPy/alerts")
             
         else:
-            _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format("self.Name",rc) )
+            _LOGGER.info("Camera : {0}: Bad mqtt connection Returned code={1}".format("self.Name",reason_code) )
             self.client.connected_flag=False
 
-    def mqtt_on_disconnect(self, client, userdata, rc):
-        logging.info("disconnecting reason  "  +str(rc))
+    def mqtt_on_disconnect(self, client, userdata, flags, reason_code, properties):
+        logging.info("disconnecting reason  "  +str(reason_code))
         self.client.connected_flag=False
         
 
@@ -241,8 +243,8 @@ class DahuaEventThread(threading.Thread):
                 else:
                     device.SnapshotImage(channel+device.snapshotoffset,msgchannel,"Snap Shot Image")
                 break
-    
-                    
+
+
     def mqtt_on_alert_message(self,client, userdata, msg):
         if msg.payload.decode("utf-8").lower() == 'on' or msg.payload.decode("utf-8").lower() == 'true':
             newState = True
@@ -300,6 +302,7 @@ if __name__ == '__main__':
             camera["auth"] = cp.get(camera_key,'auth')
             camera["events"] = cp.get(camera_key,'events')
             camera["alerts"] = cp.getboolean(camera_key,"alerts",fallback=True)
+            camera["json"] = cp.getboolean(camera_key,"json",fallback=False)
             channels = {}
             if cp.has_option(camera_key,'channels'):
                 try:
@@ -308,7 +311,7 @@ if __name__ == '__main__':
                         channelIndex = channel.split(':')[0]
                         channelName = channel.split(':')[1]
                         channels[int(channelIndex)] = channelName
-                        
+
                 except Exception as e:
                     _LOGGER.warning("Warning, No channel list in config (may be obtained from NVR):" + str(e))
                     channels = {}
@@ -352,8 +355,4 @@ if __name__ == '__main__':
         dahua_event.start()
     except Exception as ex:
         _LOGGER.error("Error starting:" + str(ex))
-
-    
-
-    
 

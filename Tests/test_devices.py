@@ -131,7 +131,7 @@ def test_dahua_search_clips():
         
     starttime = datetime.datetime.now() - datetime.timedelta(minutes=520)
     endtime = datetime.datetime.now()
-    result = device.SearchClips(1, starttime,endtime,"",message='')
+    result = device.SearchClips(1, starttime,endtime,"",publishImages=False,message='')
     assert result is not None
     
     

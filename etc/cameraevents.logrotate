@@ -1,0 +1,11 @@
+/var/log/cameraevents/*.log {
+    rotate 7
+    daily
+    compress
+    size 2M
+    nocreate
+    missingok
+    postrotate
+        /bin/systemctl restart cameraevents
+    endscript
+}
